@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'org.hyperledger.besu'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url "https://hyperledger.jfrog.io/artifactory/besu-maven" }
+}
+
+ext {
+    testcontainersVersion = '1.20.4'
+    web3jVersion = '4.12.0'
+    assertjVersion = '3.26.3'
+    slf4jVersion = '2.0.9'
+    logbackVersion = '1.5.6'
+    jacksonVersion = '2.18.0'
+    junitVersion = '5.11.0'
+    besuPluginVersion = '24.12.0'
+}
+
+dependencies {
+    // Testcontainers
+    implementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+    implementation "org.testcontainers:testcontainers"
+    implementation "org.testcontainers:junit-jupiter"
+
+    // Web3j for blockchain interaction
+    implementation "org.web3j:core:${web3jVersion}"
+
+    // AssertJ fluent assertions
+    implementation "org.assertj:assertj-core:${assertjVersion}"
+
+    // Logging
+    implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+    implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+    implementation "ch.qos.logback.contrib:logback-jackson:0.1.5"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+
+    // Utilities
+    implementation 'com.google.guava:guava:33.0.0-jre'
+    implementation 'org.apache.tuweni:tuweni-bytes:2.1.0'
+    implementation 'org.apache.tuweni:tuweni-units:2.1.0'
+
+    // Test
+    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs.add("-parameters")
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'runIntegration', System.getProperty('runIntegration', 'false')
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+shadowJar {
+    archiveBaseName.set('besu-permissioning-framework')
+    archiveClassifier.set('')
+    archiveVersion.set('')
+}

@@ -1,0 +1,59 @@
+test:
+  workers:
+    number: 4
+  rounds:
+    - label: transfer-50tps
+      txNumber: 3000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 20
+          value: "0x1"
+
+    - label: transfer-100tps
+      txNumber: 6000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 20
+          value: "0x1"
+
+    - label: transfer-200tps
+      txNumber: 12000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 200
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 20
+          value: "0x1"
+
+    - label: transfer-ramp
+      txNumber: 15000
+      rateControl:
+        type: linear-rate
+        opts:
+          startingTps: 10
+          finishingTps: 500
+      workload:
+        module: workloads/transfer-ramp.js
+        arguments:
+          accounts: 20
+          value: "0x1"
+
+monitor:
+  docker:
+    interval: 5
+    cpu: ["all"]
+    memory: ["all"]
+    network: ["all"]

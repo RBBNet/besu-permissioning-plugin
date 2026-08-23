@@ -1,0 +1,15 @@
+services:
+  caliper:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.caliper
+    volumes:
+      - ../configs:/caliper/configs:ro
+      - ../workloads:/caliper/workloads:ro
+      - ../networks:/caliper/networks:ro
+      - ../reports:/caliper/reports
+    network_mode: "host"
+    command: >
+      --caliper-workspace /caliper
+      --caliper-benchconfig configs/benchmark-comparativo.yaml
+      --caliper-networkconfig networks/network-plugin-on.json

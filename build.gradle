@@ -1,0 +1,82 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.diffplug.spotless' version '6.25.0'
+}
+
+group = 'org.hyperledger.besu.plugin'
+version = '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url "https://hyperledger.jfrog.io/artifactory/besu-maven" }
+}
+
+dependencies {
+    // Hyperledger Besu plugin APIs (provided by Besu at runtime)
+    compileOnly 'org.hyperledger.besu:besu-plugin-api:25.12.0'
+    compileOnly 'org.hyperledger.besu:besu-datatypes:25.12.0'
+    compileOnly 'org.hyperledger.besu:besu-evm:25.12.0'
+    compileOnly 'org.hyperledger.besu.internal:besu-crypto-algorithms:25.12.0'
+    compileOnly 'org.slf4j:slf4j-api:2.0.9'
+
+    // Third-party dependencies bundled into plugin shadow JAR
+    implementation 'org.apache.tuweni:tuweni-bytes:2.1.0'
+    implementation 'org.apache.tuweni:tuweni-units:2.1.0'
+    implementation 'com.google.guava:guava:33.0.0-jre'
+
+    // Unit & Integration Test dependencies
+    testImplementation 'org.hyperledger.besu:besu-plugin-api:25.12.0'
+    testImplementation 'org.hyperledger.besu:besu-datatypes:25.12.0'
+    testImplementation 'org.hyperledger.besu:besu-evm:25.12.0'
+    testImplementation 'org.hyperledger.besu.internal:besu-crypto-algorithms:25.12.0'
+    testImplementation 'org.hyperledger.besu.internal:besu-ethereum-rlp:25.12.0'
+    testImplementation 'org.slf4j:slf4j-api:2.0.9'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.mockito:mockito-core:5.10.0'
+    testRuntimeOnly 'org.bouncycastle:bcprov-jdk18on:1.78'
+
+    // Functional & Container Test dependencies
+    testImplementation 'org.testcontainers:testcontainers:1.20.4'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
+    testImplementation 'org.web3j:core:4.12.0'
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+}
+
+shadowJar {
+    archiveBaseName.set('besu-plugin-permissioning')
+    archiveClassifier.set('')
+    archiveVersion.set('')
+
+    configurations = [project.configurations.runtimeClasspath]
+    mergeServiceFiles()
+
+    manifest {
+        attributes(
+            'Implementation-Title': 'Besu On-Chain Permissioning Plugin',
+            'Implementation-Version': version,
+            'Besu-Version': '25.12.0',
+            'Specification-Title': 'Hyperledger Besu On-Chain Permissioning Plugin',
+            'Specification-Version': '1.0'
+        )
+    }
+}
+
+spotless {
+    java {
+        googleJavaFormat('1.17.0')
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}

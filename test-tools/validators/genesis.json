@@ -1,0 +1,29 @@
+{
+  "config": {
+    "chainId": 1337,
+    "londonBlock": 0,
+    "shanghaiTime": 0,
+    "cancunTime": 0,
+    "qbft": {
+      "blockperiodseconds": 2,
+      "epochlength": 30000,
+      "requesttimeoutseconds": 10
+    }
+  },
+  "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000f83f9477C003cA05b858949e6b07D02866C892d0BDf2bc943860065E759d13a414cB46F4B3f21D8FC7bA2eB294C1690E283f14a0d409c7cd989EfAfFe6c8c3634f0000000000c0",
+  "alloc": {
+    "0x0000000000000000000000000000000000008888": {
+      "comment": "AccountIngress placeholder — deploy contract bytecode at test runtime via web3j",
+      "balance": "0x0"
+    },
+    "0x0000000000000000000000000000000000009999": {
+      "comment": "NodeIngress placeholder — deploy contract bytecode at test runtime via web3j",
+      "balance": "0x0"
+    }
+  },
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "difficulty": "0x1",
+  "gasLimit": "0x1fffffffffffff",
+  "nonce": "0x0",
+  "timestamp": "0x0"
+}

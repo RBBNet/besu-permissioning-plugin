@@ -1,0 +1,42 @@
+# Gradle
+.gradle/
+build/
+cache/
+bin/
+out/
+.java-version
+
+# IDE - IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDE - VS Code
+.vscode/
+.history/
+*.code-workspace
+
+# IDE - Eclipse
+.settings/
+.classpath
+.project
+.metadata/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*.tmp
+__pycache__/
+
+# Logs
+*.log
+logs/
+
+# Testing
+reports/
+test-results/
+volumes/
+run-data/

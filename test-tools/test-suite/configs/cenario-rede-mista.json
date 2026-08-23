@@ -1,0 +1,52 @@
+{
+  "nome_rede": "plugin-rede-mista",
+  "descricao": "Rede com 1 nó rogue sem plugin. Testa NR-01: plugin ativo apenas nos nós corretos.",
+  "plugin_jar_path": "../../build/libs/onchain-permissioning-plugin.jar",
+  "contracts": {
+    "account_ingress": "0x0000000000000000000000000000000000008888",
+    "node_ingress": "0x0000000000000000000000000000000000009999",
+    "admin_contract": "0x181a92c9b76ab7271a03b640cc172e75a0dc3484",
+    "account_rules": "0x0e9e81bb09cdd55b607373e89e3154354a925b7d",
+    "node_rules": "0xf01d20a2c5d466cc6a2bafd13bebac815aa5a616"
+  },
+  "nos": [
+    {
+      "nome": "validador-1",
+      "tipo": "bootnode",
+      "porta_rpc": 9001,
+      "porta_metrics": 9541,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": "0x0000000000000000000000000000000000009999"
+    },
+    {
+      "nome": "validador-2",
+      "tipo": "validator",
+      "porta_rpc": 9002,
+      "porta_metrics": 9542,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": "0x0000000000000000000000000000000000009999"
+    },
+    {
+      "nome": "validador-3",
+      "tipo": "validator",
+      "porta_rpc": 9003,
+      "porta_metrics": 9543,
+      "versao_besu": "26.5.0",
+      "usar_plugin": false
+    },
+    {
+      "nome": "rpc-node-1",
+      "tipo": "rpc",
+      "porta_rpc": 9005,
+      "porta_metrics": 9545,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": "0x0000000000000000000000000000000000009999"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+test:
+  workers:
+    number: 4
+  rounds:
+    - label: duracao-30min-100tps
+      txNumber: 180000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 20
+          value: "0x1"
+
+monitor:
+  docker:
+    interval: 30
+    cpu: ["all"]
+    memory: ["all"]
+    network: ["all"]

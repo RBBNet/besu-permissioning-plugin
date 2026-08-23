@@ -1,0 +1,12 @@
+FROM hyperledger/besu:latest
+
+USER root
+
+RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
+    apt-get update && apt-get install -y jq curl && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/besu/plugins
+
+COPY plugin-permissioned-rbb-integra/build/libs/rbb-permissioning-plugin-1.0-SNAPSHOT.jar /opt/besu/plugins/rbb-permissioning-plugin.jar
+
+USER besu

@@ -1,0 +1,48 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "besu-rpc-node"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:9545"
+        labels:
+          node: "rpc-node-1"
+          network: "plugin-valioso-net"
+
+  - job_name: "besu-validador-1"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:9541"
+        labels:
+          node: "validador-1"
+          network: "plugin-valioso-net"
+
+  - job_name: "besu-validador-2"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:9542"
+        labels:
+          node: "validador-2"
+          network: "plugin-valioso-net"
+
+  - job_name: "besu-validador-3"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:9543"
+        labels:
+          node: "validador-3"
+          network: "plugin-valioso-net"
+
+  - job_name: "besu-validador-4"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "host.docker.internal:9544"
+        labels:
+          node: "validador-4"
+          network: "plugin-valioso-net"

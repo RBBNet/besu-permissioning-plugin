@@ -1,0 +1,22 @@
+test:
+  workers:
+    number: 4
+  rounds:
+    - label: carga-sustentada-100tps
+      txNumber: 180000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 100
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 20
+          value: "0x1"
+
+monitor:
+  docker:
+    interval: 10
+    cpu: ["all"]
+    memory: ["all"]
+    network: ["all"]

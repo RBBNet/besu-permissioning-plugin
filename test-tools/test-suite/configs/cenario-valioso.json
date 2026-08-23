@@ -1,0 +1,60 @@
+{
+  "nome_rede": "plugin-valioso-net",
+  "descricao": "5 nós com plugin, 2 versões Besu (25.12/26.5). Contratos pré-deployados no genesis. Testa PF-01, PF-02, CV.",
+  "sync_min_peers": 0,
+  "plugin_jar_path": "../../build/libs/onchain-permissioning-plugin.jar",
+  "nos": [
+    {
+      "nome": "validador-1",
+      "tipo": "bootnode",
+      "porta_rpc": 9001,
+      "porta_metrics": 9541,
+      "versao_besu": "25.12.0",
+      "usar_plugin": true,
+      "private_key": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": ""
+    },
+    {
+      "nome": "validador-2",
+      "tipo": "validator",
+      "porta_rpc": 9002,
+      "porta_metrics": 9542,
+      "versao_besu": "25.12.0",
+      "usar_plugin": true,
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": ""
+    },
+    {
+      "nome": "validador-3",
+      "tipo": "validator",
+      "porta_rpc": 9003,
+      "porta_metrics": 9543,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": ""
+    },
+    {
+      "nome": "validador-4",
+      "tipo": "validator",
+      "porta_rpc": 9004,
+      "porta_metrics": 9544,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": ""
+    },
+    {
+      "_comment": "RPC público: node_ingress ativo para testar node permissioning",
+      "nome": "rpc-node-1",
+      "tipo": "rpc",
+      "porta_rpc": 9005,
+      "porta_metrics": 9545,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x0000000000000000000000000000000000008888",
+      "node_ingress_address": "0x0000000000000000000000000000000000009999"
+    }
+  ]
+}

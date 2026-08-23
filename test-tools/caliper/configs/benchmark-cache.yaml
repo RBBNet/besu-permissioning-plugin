@@ -1,0 +1,57 @@
+test:
+  workers:
+    number: 4
+  rounds:
+    - label: cache-1-sender
+      txNumber: 1000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 1
+          value: "0x1"
+
+    - label: cache-10-senders
+      txNumber: 1000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 10
+          value: "0x1"
+
+    - label: cache-100-senders
+      txNumber: 1000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 100
+          value: "0x1"
+
+    - label: cache-1000-senders
+      txNumber: 1000
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 50
+      workload:
+        module: workloads/transfer-constant.js
+        arguments:
+          accounts: 1000
+          value: "0x1"
+
+monitor:
+  docker:
+    interval: 5
+    cpu: ["all"]
+    memory: ["all"]

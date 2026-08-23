@@ -1,0 +1,37 @@
+{
+  "nome_rede": "plugin-failclose-ingress-invalido",
+  "descricao": "FC-02: Ingress Address inexistente (0x1234...7890) → plugin entra em FAIL-CLOSE.",
+  "plugin_jar_path": "../../build/libs/onchain-permissioning-plugin.jar",
+  "nos": [
+    {
+      "nome": "validador-1",
+      "tipo": "bootnode",
+      "porta_rpc": 9001,
+      "porta_metrics": 9541,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x1234567890123456789012345678901234567890",
+      "node_ingress_address": "0x0000000000000000000000000000000000009999"
+    },
+    {
+      "nome": "validador-2",
+      "tipo": "validator",
+      "porta_rpc": 9002,
+      "porta_metrics": 9542,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x1234567890123456789012345678901234567890",
+      "node_ingress_address": "0x0000000000000000000000000000000000009999"
+    },
+    {
+      "nome": "rpc-node-1",
+      "tipo": "rpc",
+      "porta_rpc": 9005,
+      "porta_metrics": 9545,
+      "versao_besu": "26.5.0",
+      "usar_plugin": true,
+      "ingress_address": "0x1234567890123456789012345678901234567890",
+      "node_ingress_address": "0x0000000000000000000000000000000000009999"
+    }
+  ]
+}

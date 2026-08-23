@@ -1,0 +1,749 @@
+{
+	"info": {
+		"_postman_id": "c1f8a8b8-07f9-4d64-8848-005d4df4b256",
+		"name": "Plugin Permissioning Suite v2",
+		"description": "Suíte de testes on-chain para o plugin de permissionamento do Plugin Sandbox (Hyperledger Besu).\n\n✅ Compatível com Besu 25.12.0 e 26.5.0 (plugin usa simulatePendingBlockHeader).\n\n📋 PRÉ-REQUISITOS:\n1. Suba a rede: python3 orchestrator.py -c configs/cenario-valioso.json -a start --timeout 180\n2. Gere transações: python3 postman/gen-signed-tx.py && python3 postman/gen-signed-tx.py --account unauth\n3. Copie os hex para ADMIN_SIGNED_TX e UNAUTH_SIGNED_TX\n\n📖 Leia postman/README.md para instruções completas.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "⚙️ 0. Setup & Diagnóstico",
+			"description": "Requisições de diagnóstico para verificar conectividade com o nó RPC e obter estado atual da rede. Execute estas primeiro.",
+			"item": [
+				{
+					"name": "0.1 eth_chainId — Verificar Chain ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Teste: chainId deve ser 0xb8efce (12120014)",
+									"pm.test(\"Chain ID é 12120014\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.result).to.eql(\"0xb8efce\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_chainId\",\n  \"params\": [],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Obtém o chainId da rede. Deve retornar 0xb8efce (12120014).\n\n🔍 Este valor é usado pelo gen-signed-tx.py para assinar transações EIP-155."
+					},
+					"response": []
+				},
+				{
+					"name": "0.2 eth_blockNumber — Bloco Atual",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bloco atual é hexadecimal\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.result).to.match(/^0x[0-9a-fA-F]+$/);",
+									"    var bloco = parseInt(jsonData.result, 16);",
+									"    console.log(\"Bloco atual:\", bloco);",
+									"    pm.expect(bloco).to.be.above(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_blockNumber\",\n  \"params\": [],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Garante conectividade básica com o nó Besu e retorna o número do bloco atual em hexadecimal.\n\n✅ Se retornar 0x60+, a rede está produzindo blocos normalmente."
+					},
+					"response": []
+				},
+				{
+					"name": "0.3 eth_gasPrice — Preço do Gás",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Gas price é válido\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    var gas = parseInt(jsonData.result, 16);",
+									"    console.log(\"Gas price:\", gas, \"wei =\", gas / 1e9, \"gwei\");",
+									"    pm.expect(gas).to.be.at.least(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_gasPrice\",\n  \"params\": [],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Obtém o preço atual do gás na rede. Útil para saber qual gas price usar ao gerar transações assinadas."
+					},
+					"response": []
+				},
+				{
+					"name": "0.4 eth_getTransactionCount (ADMIN) — Nonce Atual",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Nonce da conta ADMIN\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    var nonce = parseInt(jsonData.result, 16);",
+									"    console.log(\"Nonce ADMIN ({{ADMIN_ADDR}}):\", nonce);",
+									"    console.log(\"Use: python3 gen-signed-tx.py --nonce\", nonce);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getTransactionCount\",\n  \"params\": [\"{{ADMIN_ADDR}}\", \"pending\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Obtém o nonce atual da conta ADMIN (0xf39Fd6e5...).\n\n📝 Use este valor ao gerar a transação assinada:\n   python3 gen-signed-tx.py --nonce <VALOR>"
+					},
+					"response": []
+				},
+				{
+					"name": "0.5 eth_getTransactionCount (UNAUTH) — Nonce Atual",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Nonce da conta UNAUTH\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    var nonce = parseInt(jsonData.result, 16);",
+									"    console.log(\"Nonce UNAUTH ({{UNAUTH_ADDR}}):\", nonce);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getTransactionCount\",\n  \"params\": [\"{{UNAUTH_ADDR}}\", \"pending\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Obtém o nonce atual da conta UNAUTH (0x70997970...).\n\n📝 Esta conta NÃO está na allowlist — transações dela devem ser rejeitadas em PF-02."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🔐 1. Account Permissioning (PF)",
+			"description": "Testes de permissionamento de contas.\n\n📌 ANTES DE EXECUTAR:\n1. Execute: python3 postman/gen-signed-tx.py\n2. Copie o hex para a variável ADMIN_SIGNED_TX\n3. Execute: python3 postman/gen-signed-tx.py --account unauth\n4. Copie o hex para a variável UNAUTH_SIGNED_TX",
+			"item": [
+				{
+					"name": "PF-01: eth_sendRawTransaction (Conta Permitida)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// PF-01: Transação da conta ADMIN (permitida) deve ser ACEITA",
+									"pm.test(\"PF-01: Transação aceita (tx hash retornado)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    // Sucesso = tem 'result' (hash) e NÃO tem 'error'",
+									"    if (jsonData.result && !jsonData.error) {",
+									"        console.log(\"✅ PF-01 PASSOU: tx hash =\", jsonData.result);",
+									"        pm.expect(jsonData.result).to.match(/^0x[0-9a-fA-F]{64}$/);",
+									"    } else if (jsonData.error) {",
+									"        console.log(\"❌ PF-01 FALHOU:\", JSON.stringify(jsonData.error));",
+									"        if (jsonData.error.code === -32602) {",
+									"            console.log(\"   ⚠ Invalid params = transação mal formada. Rode gen-signed-tx.py novamente.\");",
+									"            console.log(\"   ⚠ Verifique o nonce (request 0.4) e chain ID (request 0.1).\");",
+									"        }",
+									"        pm.expect.fail(\"PF-01 deveria aceitar a transação: \" + jsonData.error.message);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_sendRawTransaction\",\n  \"params\": [\"{{ADMIN_SIGNED_TX}}\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Envia transação assinada pela conta ADMIN (na allowlist).\n\n✅ ESPERADO: Retorna hash 0x... da transação.\n❌ SE FALHAR COM -32602: A transação está mal formada. Rode gen-signed-tx.py novamente com o nonce correto (ver request 0.4).\n\n📝 A variável {{ADMIN_SIGNED_TX}} deve conter o hex gerado por:\n   python3 postman/gen-signed-tx.py"
+					},
+					"response": []
+				},
+				{
+					"name": "PF-02: eth_sendRawTransaction (Conta Bloqueada)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// PF-02: Transação da conta UNAUTH (bloqueada) deve ser REJEITADA",
+									"pm.test(\"PF-02: Transação rejeitada (sender not authorized)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.error) {",
+									"        var code = jsonData.error.code;",
+									"        var msg = jsonData.error.message.toLowerCase();",
+									"        console.log(\"Erro recebido: code=\" + code + \" msg=\" + msg);",
+									"        // Plugin rejeita com -32007 (ou -32000 em alguns cenários)",
+									"        if (code === -32007 || msg.includes(\"not authorized\") || msg.includes(\"permission\")) {",
+									"            console.log(\"✅ PF-02 PASSOU: Conta bloqueada corretamente.\");",
+									"            pm.expect(true).to.be.true;",
+									"        } else if (code === -32602) {",
+									"            console.log(\"⚠ Invalid params = transação mal formada, NÃO é o erro de permissionamento.\");",
+									"            console.log(\"   Rode gen-signed-tx.py --account unauth novamente.\");",
+									"            pm.expect.fail(\"PF-02: Erro errado. Esperado -32007, recebido -32602 (tx mal formada)\");",
+									"        } else {",
+									"            console.log(\"⚠ Erro inesperado:\", code, msg);",
+									"            pm.expect.fail(\"PF-02: Erro inesperado: \" + code + \" - \" + msg);",
+									"        }",
+									"    } else if (jsonData.result) {",
+									"        console.log(\"❌ PF-02 FALHOU: Transação de conta BLOQUEADA foi aceita!\");",
+									"        console.log(\"   Hash:\", jsonData.result);",
+									"        console.log(\"   O plugin pode não estar funcionando corretamente.\");",
+									"        pm.expect.fail(\"PF-02: Conta bloqueada conseguiu enviar transação! Plugin não está bloqueando.\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_sendRawTransaction\",\n  \"params\": [\"{{UNAUTH_SIGNED_TX}}\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Envia transação assinada pela conta UNAUTH (NÃO está na allowlist).\n\n✅ ESPERADO: Erro com código -32007 e mensagem 'Sender account not authorized'.\n\n📝 A variável {{UNAUTH_SIGNED_TX}} deve conter o hex gerado por:\n   python3 postman/gen-signed-tx.py --account unauth"
+					},
+					"response": []
+				},
+				{
+					"name": "PF-03: Admin.isAdmin(ADMIN) — Verificar se ADMIN é admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"PF-03: ADMIN é administrador\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        var isAdmin = parseInt(jsonData.result, 16);",
+									"        console.log(\"isAdmin(ADMIN) =\", isAdmin ? \"✅ SIM\" : \"❌ NÃO\");",
+									"        pm.expect(isAdmin).to.equal(1, \"ADMIN deveria ser administrador\");",
+									"    } else if (jsonData.error) {",
+									"        console.log(\"Erro:\", JSON.stringify(jsonData.error));",
+									"        pm.expect.fail(\"Falha ao consultar Admin: \" + jsonData.error.message);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_call\",\n  \"params\": [\n    {\n      \"to\": \"{{ADMIN_PROXY}}\",\n      \"data\": \"0xfe9fbb80000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266\"\n    },\n    \"latest\"\n  ],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Verifica se a conta ADMIN está registrada como administrador no contrato Admin (0x181a92c9...).\n\n📖 Função: isAdmin(address)\n🔧 Selector: 0xfe9fbb80\n\n✅ ESPERADO: Retorna 0x0000...0001 (true = é admin).\n\n💡 NOTA: O AccountRules.accountPermitted() tem controle de acesso e só pode ser chamado pelo plugin via Ingress. Use o Admin contract para verificações diretas."
+					},
+					"response": []
+				},
+				{
+					"name": "PF-04: Admin.isAdmin(UNAUTH) — Verificar se UNAUTH é admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"PF-04: UNAUTH NÃO é administrador\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        var isAdmin = parseInt(jsonData.result, 16);",
+									"        console.log(\"isAdmin(UNAUTH) =\", isAdmin ? \"SIM\" : \"✅ NÃO\");",
+									"        pm.expect(isAdmin).to.equal(0, \"UNAUTH NÃO deveria ser administrador\");",
+									"    } else if (jsonData.error) {",
+									"        console.log(\"Erro:\", JSON.stringify(jsonData.error));",
+									"        pm.expect.fail(\"Falha ao consultar Admin: \" + jsonData.error.message);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_call\",\n  \"params\": [\n    {\n      \"to\": \"{{ADMIN_PROXY}}\",\n      \"data\": \"0xfe9fbb8000000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c8\"\n    },\n    \"latest\"\n  ],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Verifica se a conta UNAUTH está registrada como administrador.\n\n✅ ESPERADO: Retorna 0x0000...0000 (false = NÃO é admin).\n\nIsto confirma que apenas ADMIN tem privilégios administrativos."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🌐 2. Node Permissioning (NR)",
+			"description": "Testes de permissionamento de nós. Verifica se o NodeRules está operacional.",
+			"item": [
+				{
+					"name": "NR-01: eth_call nodePermitted (consulta)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"NR-01: NodeRules responde à consulta\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        console.log(\"Resposta NodeRules:\", jsonData.result);",
+									"        pm.expect(jsonData.result).to.not.equal(\"0x\");",
+									"    } else if (jsonData.error) {",
+									"        console.log(\"⚠ NodeRules pode não estar respondendo:\", JSON.stringify(jsonData.error));",
+									"        pm.expect.fail(\"Falha: \" + jsonData.error.message);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_call\",\n  \"params\": [\n    {\n      \"to\": \"{{NODE_RULES}}\",\n      \"data\": \"0xfe9fbb80000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266\"\n    },\n    \"latest\"\n  ],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Consulta o contrato NodeRules (0xf01d20a2...) para verificar se um endereço de nó é permitido.\n\n📖 Função: nodePermitted(address)\n🔧 Selector: 0xfe9fbb80\n\n✅ ESPERADO: Retorna 0x0000...0001 se o endereço está registrado como nó permitido."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📋 3. Verificação de Contratos (CV)",
+			"description": "Verificações on-chain dos contratos pré-deployados no genesis: bytecodes, registros nos Ingresses, e allowlists.",
+			"item": [
+				{
+					"name": "CV-01: Verificar Account Ingress (bytecode)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"CV-01: Account Ingress tem bytecode\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        var len = (jsonData.result.length - 2) / 2;",
+									"        console.log(\"Account Ingress bytecode:\", len, \"bytes\");",
+									"        pm.expect(len).to.be.above(1000, \"Bytecode muito curto, pode ser EOA\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getCode\",\n  \"params\": [\"{{ACCOUNT_INGRESS}}\", \"latest\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Verifica se o Account Ingress (0x0000...8888) está implantado com bytecode.\n\n✅ ESPERADO: Retorna bytecode > 1000 bytes."
+					},
+					"response": []
+				},
+				{
+					"name": "CV-02: Verificar Node Ingress (bytecode)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"CV-02: Node Ingress tem bytecode\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        var len = (jsonData.result.length - 2) / 2;",
+									"        console.log(\"Node Ingress bytecode:\", len, \"bytes\");",
+									"        pm.expect(len).to.be.above(1000);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getCode\",\n  \"params\": [\"{{NODE_INGRESS}}\", \"latest\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Verifica se o Node Ingress (0x0000...9999) está implantado com bytecode.\n\n✅ ESPERADO: Retorna bytecode > 1000 bytes."
+					},
+					"response": []
+				},
+				{
+					"name": "CV-03: Verificar Admin Proxy (bytecode + allowlist)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"CV-03: Admin contract está implantado\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        var len = (jsonData.result.length - 2) / 2;",
+									"        console.log(\"Admin bytecode:\", len, \"bytes\");",
+									"        pm.expect(len).to.be.above(1000);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getCode\",\n  \"params\": [\"{{ADMIN_PROXY}}\", \"latest\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Verifica se o contrato Admin (0x181a92c9...) está implantado.\n\nO Admin gerencia a lista de administradores do sistema e emite eventos quando a lista é alterada."
+					},
+					"response": []
+				},
+				{
+					"name": "CV-04: Verificar AccountRules (bytecode + registro no Ingress)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"CV-04: AccountRules está implantado\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        var len = (jsonData.result.length - 2) / 2;",
+									"        console.log(\"AccountRules bytecode:\", len, \"bytes\");",
+									"        pm.expect(len).to.be.above(1000);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getCode\",\n  \"params\": [\"{{ACCOUNT_RULES}}\", \"latest\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Verifica se AccountRules (0x0e9e81bb...) está implantado.\n\nEste contrato implementa a lógica de permissionamento de contas (GEN1) e está registrado no Account Ingress."
+					},
+					"response": []
+				},
+				{
+					"name": "CV-05: Verificar NodeRules (bytecode + registro no Ingress)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"CV-05: NodeRules está implantado\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result) {",
+									"        var len = (jsonData.result.length - 2) / 2;",
+									"        console.log(\"NodeRules bytecode:\", len, \"bytes\");",
+									"        pm.expect(len).to.be.above(1000);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getCode\",\n  \"params\": [\"{{NODE_RULES}}\", \"latest\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{RPC_URL}}",
+							"host": ["{{RPC_URL}}"]
+						},
+						"description": "Verifica se NodeRules (0xf01d20a2...) está implantado.\n\nEste contrato implementa a lógica de permissionamento de nós (GEN1) e está registrado no Node Ingress."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "💥 4. Chaos & Fail-Close (FC)",
+			"description": "Testes de resiliência: comportamento fail-close quando o Ingress está ausente ou inválido.\n\n⚠ Estes testes exigem cenários diferentes do cenario-valioso.json:\n   - FC-01: cenario-failclose-sem-ingress.json\n   - FC-02: cenario-failclose-ingress-invalido.json",
+			"item": [
+				{
+					"name": "FC-01: Transação com Ingress Ausente (Fail-Close)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"FC-01: Transação BLOQUEADA (sem Ingress)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.error) {",
+									"        console.log(\"✅ FC-01: Fail-close ativado:\", jsonData.error.message);",
+									"        pm.expect(jsonData.error.code).to.be.oneOf([-32007, -32000, -32603]);",
+									"        pm.expect(true).to.be.true;",
+									"    } else if (jsonData.result) {",
+									"        console.log(\"❌ FC-01 FALHOU: Transação aceita sem Ingress!\");",
+									"        pm.expect.fail(\"FC-01: Fail-close NÃO funcionou. Transação foi aceita sem Ingress.\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_sendRawTransaction\",\n  \"params\": [\"{{ADMIN_SIGNED_TX}}\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{FC_RPC_URL}}",
+							"host": ["{{FC_RPC_URL}}"]
+						},
+						"description": "Testa cenário sem Ingress configurado.\n\n📌 REQUER: Rede iniciada com cenario-failclose-sem-ingress.json\n   python3 orchestrator.py -c configs/cenario-failclose-sem-ingress.json -a start --timeout 180\n\n✅ ESPERADO: Transação BLOQUEADA mesmo sendo da conta ADMIN. O plugin entra em modo fail-close quando não encontra o Ingress.\n\n⚠ A variável {{FC_RPC_URL}} deve apontar para o nó do cenário fail-close (porta pode ser diferente de 9005)."
+					},
+					"response": []
+				},
+				{
+					"name": "FC-02: Transação com Ingress Inválido (Fail-Close)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"FC-02: Transação BLOQUEADA (Ingress inválido)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.error) {",
+									"        console.log(\"✅ FC-02: Fail-close ativado:\", jsonData.error.message);",
+									"        pm.expect(true).to.be.true;",
+									"    } else if (jsonData.result) {",
+									"        console.log(\"❌ FC-02 FALHOU: Transação aceita com Ingress inválido!\");",
+									"        pm.expect.fail(\"FC-02: Fail-close NÃO funcionou.\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_sendRawTransaction\",\n  \"params\": [\"{{ADMIN_SIGNED_TX}}\"],\n  \"id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{FC_RPC_URL}}",
+							"host": ["{{FC_RPC_URL}}"]
+						},
+						"description": "Testa cenário com Ingress apontando para endereço inexistente.\n\n📌 REQUER: Rede iniciada com cenario-failclose-ingress-invalido.json\n   python3 orchestrator.py -c configs/cenario-failclose-ingress-invalido.json -a start --timeout 180\n\n✅ ESPERADO: Transação BLOQUEADA. O plugin tenta carregar o contrato do endereço de Ingress e, ao não encontrar bytecode, faz fail-close."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [],
+	"variable": [
+		{
+			"key": "RPC_URL",
+			"value": "http://localhost:9005",
+			"type": "string",
+			"description": "URL do nó RPC principal (rpc-node-1, porta 9005). Compatível com Besu 25.12.0 e 26.5.0."
+		},
+		{
+			"key": "FC_RPC_URL",
+			"value": "http://localhost:9005",
+			"type": "string",
+			"description": "URL RPC para cenários fail-close (ajuste conforme porta do cenário FC)"
+		},
+		{
+			"key": "ACCOUNT_INGRESS",
+			"value": "0x0000000000000000000000000000000000008888",
+			"type": "string",
+			"description": "Endereço do Account Ingress (pré-deployado no genesis)"
+		},
+		{
+			"key": "NODE_INGRESS",
+			"value": "0x0000000000000000000000000000000000009999",
+			"type": "string",
+			"description": "Endereço do Node Ingress (pré-deployado no genesis)"
+		},
+		{
+			"key": "ADMIN_PROXY",
+			"value": "0x181a92c9b76ab7271a03b640cc172e75a0dc3484",
+			"type": "string",
+			"description": "Endereço do contrato Admin (proxy, pré-deployado no genesis)"
+		},
+		{
+			"key": "ACCOUNT_RULES",
+			"value": "0x0e9e81bb09cdd55b607373e89e3154354a925b7d",
+			"type": "string",
+			"description": "Endereço do AccountRules GEN1 (pré-deployado no genesis)"
+		},
+		{
+			"key": "NODE_RULES",
+			"value": "0xf01d20a2c5d466cc6a2bafd13bebac815aa5a616",
+			"type": "string",
+			"description": "Endereço do NodeRules GEN1 (pré-deployado no genesis)"
+		},
+		{
+			"key": "ADMIN_ADDR",
+			"value": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+			"type": "string",
+			"description": "Conta ADMIN (na allowlist, chave privada: 0xac09...)"
+		},
+		{
+			"key": "UNAUTH_ADDR",
+			"value": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+			"type": "string",
+			"description": "Conta UNAUTH (bloqueada, chave privada: 0x59c6...)"
+		},
+		{
+			"key": "ADMIN_SIGNED_TX",
+			"value": "0x_COLOQUE_AQUI_O_HEX_GERADO_POR_gen_signed_tx_py",
+			"type": "string",
+			"description": "⚠ PREENCHA: resultado de 'python3 postman/gen-signed-tx.py'"
+		},
+		{
+			"key": "UNAUTH_SIGNED_TX",
+			"value": "0x_COLOQUE_AQUI_O_HEX_GERADO_POR_gen_signed_tx_py__account_unauth",
+			"type": "string",
+			"description": "⚠ PREENCHA: resultado de 'python3 postman/gen-signed-tx.py --account unauth'"
+		}
+	]
+}

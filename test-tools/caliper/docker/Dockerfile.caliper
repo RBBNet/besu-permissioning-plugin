@@ -1,0 +1,11 @@
+FROM node:18-slim
+
+RUN npm install -g @hyperledger/caliper-cli@0.6.0
+RUN caliper bind --caliper-bind-sut besu:latest
+
+WORKDIR /caliper
+COPY configs/ ./configs/
+COPY workloads/ ./workloads/
+COPY networks/ ./networks/
+
+ENTRYPOINT ["caliper", "launch", "manager"]
