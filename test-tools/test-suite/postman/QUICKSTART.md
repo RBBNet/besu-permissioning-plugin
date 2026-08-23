@@ -1,90 +1,58 @@
-# QUICKSTART: Testes Postman em 5 Passos
+# QUICKSTART: Postman Testing in 5 Steps
 
-## Pré-requisitos
-- Docker rodando
-- Python 3 instalado
-- Postman instalado
+## Prerequisites
+- Docker running
+- Python 3 installed
+- Postman installed
 
-## Passo 1: Subir a Rede
+## Step 1: Boot Network Scenario
 
 ```bash
 cd test-suite/
-python3 orchestrator.py -c configs/cenario-valioso.json -a start --timeout 180
+python3 orchestrator.py -c configs/scenario-full-network.json -a start --timeout 180
 ```
 
-**Opcional**: Para ver métricas em tempo real (Grafana + Prometheus):
-```bash
-python3 orchestrator.py -c configs/cenario-valioso.json -a start --timeout 180 --monitoring
-# Acesse Grafana: http://localhost:3000 (admin/admin)
-```
+Wait until output displays: `NETWORK UP AND OPERATIONAL!`
 
-Aguarde até ver: `A REDE BLOCKCHAIN Plugin Permissioning ESTÁ DE PÉ E OPERACIONAL!`
-
-## Passo 2: Gerar Transações Assinadas
+## Step 2: Generate Signed Transactions
 
 ```bash
 cd postman/
 
-# Instalar dependências (só na primeira vez)
+# Install dependencies (one-time setup)
 pip3 install coincurve rlp eth-utils requests pycryptodome
 
-# Gerar transação ADMIN (conta permitida)
+# Generate ADMIN transaction (permitted account)
 python3 gen-signed-tx.py
 
-# Copie o hex que aparece (cole no Postman depois)
-
-# Gerar transação UNAUTH (conta bloqueada)
+# Generate UNAUTH transaction (blocked account)
 python3 gen-signed-tx.py --account unauth
-
-# Copie o hex também
 ```
 
-## Passo 3: Configurar Postman
+## Step 3: Configure Postman Collection
 
-1. Abra o Postman
-2. Clique em **Import** → selecione `Permissioning.postman_collection.json`
-3. Na coleção importada, vá em **Variables** (aba superior)
-4. Preencha:
-   - `ADMIN_SIGNED_TX`: cole o hex da transação ADMIN
-   - `UNAUTH_SIGNED_TX`: cole o hex da transação UNAUTH
-   - `RPC_URL`: deixe como `http://localhost:9005`
+1. Open Postman
+2. Click **Import** -> select `Permissioning.postman_collection.json`
+3. Under collection **Variables** tab, populate:
+   - `ADMIN_SIGNED_TX`: hex string from Step 2 (`--account admin`)
+   - `UNAUTH_SIGNED_TX`: hex string from Step 2 (`--account unauth`)
+   - `RPC_URL`: `http://localhost:9005`
 
-## Passo 4: Executar os Testes (na ordem)
+## Step 4: Execute Test Suite
 
-Execute cada pasta **na ordem**:
+Run folders sequentially:
 
-| Ordem | Pasta | O que testa |
-|-------|-------|-------------|
-| 1º | ⚙️ **0. Setup** | Verifica se a rede está respondendo |
-| 2º | 🔐 **1. Account Permissioning** | Testa se ADMIN passa e UNAUTH é bloqueada |
-| 3º | 🌐 **2. Node Permissioning** | Verifica permissão de nós |
-| 4º | 📋 **3. Verificação de Contratos** | Confirma que contratos estão deployados |
-| 5º | 💥 **4. Chaos & Fail-Close** | Testa cenários de falha (precisa de rede separada) |
+| Step | Folder | Target Validation |
+| :--- | :--- | :--- |
+| 1 | ⚙️ **0. Setup** | RPC connectivity & chain status |
+| 2 | 🔐 **1. Account Permissioning** | Verifies ADMIN is permitted and UNAUTH is blocked |
+| 3 | 🌐 **2. Node Permissioning** | Verifies node rule queries |
+| 4 | 📋 **3. Contract Verification** | Verifies genesis contract bytecodes |
+| 5 | 💥 **4. Chaos & Fail-Close** | Verifies fail-close behavior |
 
-## Passo 5: Interpretar Resultados
-
-- ✅ **Teste verde**: Passou (transação aceita ou rejeitada corretamente)
-- ❌ **Teste vermelhou**: Falhou (verifique se as transações estão assinadas corretamente)
-
-## Troubleshooting Rápido
-
-### Erro `-32602 Invalid params`
-- Transação mal formada
-- Solução: Rode `gen-signed-tx.py` novamente com nonce correto
-
-### Erro `-32000` em vez de `-32007`
-- Besu retorna -32000 para alguns erros
-- Se mensagem contiver "not authorized", plugin está funcionando
-
-### PF-02 passou (conta bloqueada foi aceita)
-- Plugin não está bloqueando
-- Verifique: `docker logs plugin-valioso-net-rpc-node-1 | grep -i permission`
-
-## Para Parar a Rede
+## Step 5: Stop Network
 
 ```bash
 cd test-suite/
 python3 orchestrator.py -a stop
 ```
-
-**Nota**: O comando `stop` também para o stack de monitoramento (Prometheus + Grafana) se estiver rodando.

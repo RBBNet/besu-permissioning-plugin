@@ -8,7 +8,7 @@ Prometheus + Grafana para visualização de métricas do plugin de permissioname
 
 ```bash
 # Iniciar rede COM monitoramento
-python3 orchestrator.py -c configs/cenario-valioso.json -a start --monitoring
+python3 orchestrator.py -c configs/scenario-full-network.json -a start --monitoring
 
 # Parar rede E monitoramento
 python3 orchestrator.py -a stop

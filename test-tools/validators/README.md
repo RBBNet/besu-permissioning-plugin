@@ -1,58 +1,24 @@
-# Static Validator Keys for E2E Test Suite (Suite 3)
+# Validator Configuration for E2E Test Suite
 
 ## Purpose
 
-Pre-generated, deterministic validator keys for QBFT consensus testing.
-No runtime key generation. Reproducible, CI-compatible.
+Guidance and configuration templates for QBFT consensus testing with the Besu On-Chain Permissioning Plugin.
 
-## Files
+## Security Notice
 
-| File | Description |
-|:---|:---|
-| `validator1.key` | 32-byte hex-encoded secp256k1 private key (64 hex chars, no 0x prefix) |
-| `validator2.key` | Same format |
-| `validator3.key` | Same format |
-| `genesis.json` | QBFT genesis with 3 validators + pre-deployed Ingress contracts |
+Plaintext private key files are NOT committed to version control. Keys must be generated dynamically during test setup or injected securely via environment variables.
 
 ## Validator Addresses
 
 | Validator | Address |
-|:---|:---|
+| :--- | :--- |
 | validator1 | `0x77C003cA05b858949e6b07D02866C892d0BDf2bc` |
 | validator2 | `0x3860065E759d13a414cB46F4B3f21D8FC7bA2eB2` |
 | validator3 | `0xC1690E283f14a0d409c7cd989EfAfFe6c8c3634f` |
 
-## Usage
+## Dynamic Key Generation Example
 
-### In genesis.json extraData
-
-These validators are embedded in `genesis.json` with proper RLP-encoded QBFT extraData.
-
-### As Besu node keys
-
-```bash
-besu --node-private-key-file=test-tools/validators/validator1.key \
-     --genesis-file=test-tools/validators/genesis.json
-```
-
-### In Docker Compose / Testcontainers
-
-```java
-// Mount key into container
-container.withCopyFileToContainer(
-    MountableFile.forHostPath("test-tools/validators/validator1.key"),
-    "/opt/besu/key")
-.withEnv("BESU_NODE_PRIVATE_KEY_FILE", "/opt/besu/key");
-```
-
-## Security
-
-These keys are for TESTING ONLY. Do NOT use in production.
-Keys committed to version control — no secrets here.
-
-## Regeneration
-
-To regenerate with different keys:
+To generate ephemeral keys for local testing:
 
 ```bash
 cd test-tools/validators
@@ -64,5 +30,4 @@ for i in 1 2 3; do
     ADDR=$(cast wallet address --private-key "0x$(cat validator${i}.key)" 2>/dev/null)
     echo "validator${i}: $ADDR"
 done
-# Then update genesis.json extraData with new addresses
 ```

@@ -1,46 +1,43 @@
 #!/bin/bash
-# Uso: ./secure_node.sh <nome_projeto> <nome_do_no> <porta_rpc>
+# Usage: ./secure_node.sh <project_name> <node_name> <rpc_port>
 
-PROJETO=$1
-NO=$2
-PORTA_RPC=$3
-REDE_DOCKER="${PROJETO,,}_default"
+PROJECT=$1
+NODE_NAME=$2
+RPC_PORT=$3
 
-if [ -z "$PROJETO" ] || [ -z "$NO" ] || [ -z "$PORTA_RPC" ]; then
-    echo "Uso: ./secure_node.sh <nome_projeto> <nome_do_no> <porta_rpc>"
+if [ -z "$PROJECT" ] || [ -z "$NODE_NAME" ] || [ -z "$RPC_PORT" ]; then
+    echo "Usage: ./secure_node.sh <project_name> <node_name> <rpc_port>"
     exit 1
 fi
 
-# Extrai chave e IP do Bootnode de forma segura
-docker run --rm -v ${PWD}/$PROJETO/.env.configs/nodes/boot1:/key-dir hyperledger/besu:26.4.0 public-key export --node-private-key-file=/key-dir/key --to=/key-dir/key.pub > /dev/null 2>&1
-BOOT_PUB=$(cat $PROJETO/.env.configs/nodes/boot1/key.pub | sed 's/^0x//')
-BOOT_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${PROJETO,,}_boot1_1)
+DOCKER_NET="${PROJECT,,}_default"
 
-echo "1. Desligando e recriando o nó com o Plugin RBB Ativado..."
-docker rm -f ${PROJETO,,}_${NO}_1
+echo "1. Stopping and recreating node container with Permissioning Plugin active..."
+docker rm -f ${PROJECT,,}_${NODE_NAME}_1 > /dev/null 2>&1
 
-echo "2. Subindo nó blindado..."
-docker run -d --name ${PROJETO,,}_${NO}_1 \
-  --network $REDE_DOCKER \
-  -p $PORTA_RPC:8545 \
-  -v ${PWD}/$PROJETO/volumes/$NO:/var/lib/besu \
-  -v ${PWD}/$PROJETO/.env.configs/genesis.json:/var/lib/besu/genesis.json \
-  -v ${PWD}/$PROJETO/.env.configs/log.xml:/var/lib/besu/log.xml \
-  -v ${PWD}/$PROJETO/.env.configs/nodes/$NO/key:/var/lib/besu/key \
-  -v ${PWD}/$PROJETO/plugins:/opt/besu/plugins \
+echo "2. Booting secured node container..."
+docker run -d --name ${PROJECT,,}_${NODE_NAME}_1 \
+  --network $DOCKER_NET \
+  -p $RPC_PORT:8545 \
+  -v ${PWD}/$PROJECT/volumes/$NODE_NAME:/var/lib/besu \
+  -v ${PWD}/$PROJECT/.env.configs/genesis.json:/var/lib/besu/genesis.json \
+  -v ${PWD}/$PROJECT/.env.configs/log.xml:/var/lib/besu/log.xml \
+  -v ${PWD}/$PROJECT/.env.configs/nodes/$NODE_NAME/key:/var/lib/besu/key \
+  -v ${PWD}/$PROJECT/plugins:/opt/besu/plugins \
   -e BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS="0x0000000000000000000000000000000000008888" \
+  -e BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS="0x0000000000000000000000000000000000009999" \
   -e BESU_TX_POOL_ENABLE_BALANCE_CHECK=false \
   -e LOG4J_CONFIGURATION_FILE=/var/lib/besu/log.xml \
-  hyperledger/besu:26.4.0 \
+  hyperledger/besu:25.12.0 \
   --genesis-file=/var/lib/besu/genesis.json \
   --data-path=/var/lib/besu \
   --node-private-key-file=/var/lib/besu/key \
   --rpc-http-enabled=true \
-  --rpc-http-api=ADMIN,ETH,NET,QBFT,WEB3,DEBUG,TRACE \
+  --rpc-http-api=ADMIN,ETH,NET,QBFT,WEB3 \
   --rpc-http-host=0.0.0.0 \
   --host-allowlist="*" \
   --rpc-http-cors-origins="*" \
   --bootnodes=enode://${BOOT_PUB}@${BOOT_IP}:30303 \
-  --metrics-enabled=true --metrics-host=0.0.0.0
+  --metrics-enabled=true --metrics-host=0.0.0.0 > /dev/null 2>&1
 
-echo "✅ Sucesso! O nó $NO agora está 100% blindado pelo Plugin e sincronizado à rede."
+echo "✅ SUCCESS: Node $NODE_NAME is now protected by Permissioning Plugin."

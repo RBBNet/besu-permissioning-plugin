@@ -296,7 +296,7 @@ cd plugin-permissioned-rbb-integra
 
 # 2. Sobe rede com plugin (test-suite)
 cd test-tools/test-suite
-python3 orchestrator.py -c configs/cenario-valioso.json -a start
+python3 orchestrator.py -c configs/scenario-full-network.json -a start
 
 # 3. Setup de contratos
 bash scripts/setup-contracts.sh
@@ -311,8 +311,8 @@ cd ../caliper
 
 # 5. Benchmark sem plugin (rede alternativa)
 cd ../test-suite
-python3 orchestrator.py -c configs/cenario-valioso.json -a stop
-python3 orchestrator.py -c configs/cenario-rede-mista.json -a start
+python3 orchestrator.py -c configs/scenario-full-network.json -a stop
+python3 orchestrator.py -c configs/scenario-mixed-network.json -a start
 cd ../caliper
 ./caliper-manager.sh --network networks/network-plugin-off.json \
                      --workload workloads/transfer-constant.js \
@@ -321,7 +321,7 @@ cd ../caliper
 
 # 6. Derruba tudo
 cd ../test-suite
-python3 orchestrator.py -c configs/cenario-rede-mista.json -a stop
+python3 orchestrator.py -c configs/scenario-mixed-network.json -a stop
 ```
 
 ### 6.2 Automação Completa
@@ -552,7 +552,7 @@ caliper bind --caliper-bind-sut besu:latest
 ```bash
 # 1. Sobe a rede Besu com plugin
 cd test-tools/test-suite
-python3 orchestrator.py -c configs/cenario-valioso.json -a start --timeout 180
+python3 orchestrator.py -c configs/scenario-full-network.json -a start --timeout 180
 
 # 2. Roda benchmark comparativo
 cd ../caliper
@@ -566,7 +566,7 @@ cd ../caliper
 
 # 5. Para a rede
 cd ../test-suite
-python3 orchestrator.py -c configs/cenario-valioso.json -a stop
+python3 orchestrator.py -c configs/scenario-full-network.json -a stop
 ```
 
 ---

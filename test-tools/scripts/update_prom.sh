@@ -1,47 +1,41 @@
 #!/bin/bash
-# Uso: ./update_prom.sh <nome_projeto> <nome_do_novo_no>
+# Usage: ./update_prom.sh <project_name> <node_name>
 
-PROJETO=$1
-NOVO_NO=$2
+PROJECT=$1
+NEW_NODE=$2
 
-if [ -z "$PROJETO" ] || [ -z "$NOVO_NO" ]; then
-    echo "Uso: ./update_prom.sh <nome_projeto> <nome_do_novo_no>"
-    echo "Exemplo: ./update_prom.sh redeToy_bird validator15"
+if [ -z "$PROJECT" ] || [ -z "$NEW_NODE" ]; then
+    echo "Usage: ./update_prom.sh <project_name> <node_name>"
     exit 1
 fi
 
-ARQUIVO_PROM="$PROJETO/examples/prometheus/prometheus.yml"
+NODE_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${PROJECT,,}_${NEW_NODE}_1)
 
-if [ ! -f "$ARQUIVO_PROM" ]; then
-    echo "❌ ERRO: Arquivo $ARQUIVO_PROM não encontrado."
+if [ -z "$NODE_IP" ]; then
+    echo "❌ ERROR: Node container ${PROJECT,,}_${NEW_NODE}_1 is not running."
     exit 1
 fi
 
-# Checa se o nó já está no arquivo para evitar duplicação
-if grep -q "'$NOVO_NO:9545'" "$ARQUIVO_PROM"; then
-    echo "⚠️ O nó $NOVO_NO já está monitorado no Prometheus."
+PROM_CONFIG="$PROJECT/.env.configs/prometheus.yml"
+TARGET_STRING="'$NODE_IP:9545'"
+
+if grep -q "$TARGET_STRING" "$PROM_CONFIG"; then
+    echo "⚠️ Node $NEW_NODE ($NODE_IP) is already monitored in Prometheus."
     exit 0
 fi
 
-echo "1. Adicionando $NOVO_NO ao prometheus.yml (Apenas no bloco besu-nodes)..."
-
-# Usando awk para garantir que adicionamos APENAS debaixo do PRIMEIRO 'targets:'
-awk -v node="          - '$NOVO_NO:9545'" '
-/targets:/ && !feito {
+echo "1. Adding node $NEW_NODE ($NODE_IP:9545) to $PROM_CONFIG..."
+awk -v ip="$NODE_IP" '
+/targets:/ && !done {
     print $0
-    print node
-    feito=1
+    print "          - \x27" ip ":9545\x27"
+    done = 1
     next
 }
-1' "$ARQUIVO_PROM" > "$ARQUIVO_PROM.tmp" && mv "$ARQUIVO_PROM.tmp" "$ARQUIVO_PROM"
+{ print }
+' "$PROM_CONFIG" > "$PROM_CONFIG.tmp" && mv "$PROM_CONFIG.tmp" "$PROM_CONFIG"
 
-echo "2. Reiniciando o contêiner do Prometheus para aplicar as mudanças..."
-# Descobre o nome do contêiner do Prometheus daquele projeto específico e reinicia
-CONTAINER_PROM=$(docker ps --format "{{.Names}}" | grep "${PROJETO,,}_prometheus")
+echo "2. Restarting Prometheus monitoring container..."
+docker restart ${PROJECT,,}_prometheus_1 > /dev/null 2>&1
 
-if [ -n "$CONTAINER_PROM" ]; then
-    docker restart "$CONTAINER_PROM"
-    echo "✅ Sucesso! O nó $NOVO_NO foi adicionado com segurança ao monitoramento."
-else
-    echo "❌ ERRO: Contêiner do Prometheus não encontrado rodando."
-fi
+echo "✅ Node $NEW_NODE ($NODE_IP:9545) added to Prometheus monitoring."

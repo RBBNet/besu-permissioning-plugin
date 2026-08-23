@@ -1,130 +1,115 @@
-# 🧪 Plugin Sandbox — Suíte de Testes Configuráveis (`test-suite`)
+# 🧪 Configurable Integration Test Suite (`test-suite`)
 
-Suíte de testes de integração para certificar o **Plugin de Permissionamento On-Chain** no Hyperledger Besu.
+Integration test suite for certifying the **Besu On-Chain Permissioning Plugin**.
 
-**Modo atual**: `TransactionSimulationService` — API interna do Besu. O plugin consulta contratos via `simulate()` sem dependência de HTTP externo.
+**Execution Mode**: `TransactionSimulationService` — Besu internal plugin API. Queries smart contracts in-memory via `simulate()` with zero external HTTP dependencies.
 
 ---
 
-## 🗂️ Estrutura
+## 🗂️ Directory Structure
 
-```
+```text
 test-suite/
-├── configs/                       # Cenários JSON customizáveis
-│   ├── cenario-valioso.json       # 5 nós, 2 versões Besu, plugin ativo — PF + CV
-│   ├── cenario-heterogeneo.json   # Plugin + transparente + 2 versões — migração real
-│   ├── cenario-e2e.json           # 1 nó sem plugin (deploy) + 1 com plugin (teste)
-│   ├── cenario-failclose-sem-ingress.json     # FC-01: ingress vazio → fail-close
-│   ├── cenario-failclose-ingress-invalido.json # FC-02: ingress inexistente → fail-close
-│   └── cenario-rede-mista.json    # NR-01: nó rogue sem plugin
-├── templates/                     # Modelos para clonagem do estado inicial
-│   ├── genesis.json               # QBFT + 6 contratos pré-deployados com storage
-│   └── log.xml                    # Configuração de logs do Besu
-├── scripts/                       # Scripts auxiliares
-│   ├── generate-genesis.sh        # Gera genesis com bytecode + storage do forge
-│   ├── deploy-contracts.sh        # Deploy GEN01/GEN02 pós-genesis (nó sem plugin)
-│   ├── setup-contracts.sh         # Registro idempotente Admin+Rules nos Ingresses
-│   └── verify-contracts.sh        # Verificação standalone de contratos on-chain
-├── postman/                       # Coleções HTTP-RPC para Postman/Newman
+├── configs/                       # Customizable scenario JSON configurations
+│   ├── scenario-full-network.json       # 5 nodes, 2 Besu versions, active plugin
+│   ├── scenario-heterogeneous.json   # Plugin + transparent node coexistence
+│   ├── scenario-e2e.json             # 1 node without plugin (deploy) + 1 with plugin (test)
+│   ├── scenario-failclose-no-ingress.json     # FC-01: empty ingress -> fail-close
+│   ├── scenario-failclose-invalid-ingress.json # FC-02: invalid ingress -> fail-close
+│   └── scenario-mixed-network.json    # NR-01: rogue node without plugin
+├── templates/                     # State cloning templates
+│   ├── genesis.json               # QBFT + 6 pre-deployed contracts with storage
+│   └── log.xml                    # Besu logging configuration
+├── scripts/                       # Helper automation scripts
+│   ├── generate-genesis.sh        # Generates genesis bytecode from forge artifacts
+│   ├── deploy-contracts.sh        # Deploys post-genesis contracts
+│   ├── setup-contracts.sh         # Idempotent registration of Admin + Rules in Ingress
+│   └── verify-contracts.sh        # Standalone verification of on-chain contracts
+├── postman/                       # HTTP-RPC Postman/Newman collections
 │   ├── Permissioning.postman_collection.json
 │   └── README.md
-├── monitoring/                    # Prometheus + Grafana
-│   ├── monitoring.sh              # Script para iniciar/parar stack
-│   ├── prometheus.yml             # Configuração do Prometheus
-│   └── grafana/                   # Provisioning do Grafana
-├── orchestrator.py                # CLI Python com health-check + verificação + logs
-├── run.sh                         # Atalho bash para o orchestrator
-├── README.md                      # Esta documentação
-├── GUIA_CRIACAO_TESTES.md         # Guia de criação de novos cenários
-├── ANALISE_TECNICA_PLUGIN_SIMULATOR.md  # Análise técnica do plugin
-└── RELATORIO_PRE_DEPLOY_CONTRATOS.md    # Por que contratos precisam ser pré-deployados
+├── monitoring/                    # Prometheus + Grafana monitoring stack
+│   ├── monitoring.sh              # Script to start/stop monitoring stack
+│   ├── prometheus.yml             # Prometheus configuration
+│   └── grafana/                   # Grafana provisioning
+├── orchestrator.py                # Python CLI orchestrator with health checks
+├── run.sh                         # Bash shortcut wrapper for orchestrator
+├── README.md                      # Documentation
+└── TEST_CREATION_GUIDE.md         # Guide for creating new test scenarios
 ```
 
 ---
 
-## 🚀 Como Executar
+## 🚀 Execution
 
-### Pré-requisitos
-* **Python 3**, **Docker** e **Docker Compose**
-* **Plugin JAR** em `plugin-permissioned-rbb-integra/build/libs/onchain-permissioning-plugin.jar`
+### Prerequisites
+* **Python 3**, **Docker**, and **Docker Compose**
+* **Plugin Fat JAR** at `build/libs/besu-plugin-permissioning.jar`
 * **Foundry/Cast** (`cast --version`)
 
-### Inicializar Rede Padrão
+### Quick Start
 ```bash
 ./test-suite/run.sh
-# ou:
-python3 test-suite/orchestrator.py --config configs/cenario-valioso.json
+# or:
+python3 test-suite/orchestrator.py --config configs/scenario-full-network.json
 ```
 
-### Flags do Orchestrator
+### Orchestrator Options
 ```bash
 python3 test-suite/orchestrator.py \
-  --config configs/cenario-valioso.json \
+  --config configs/scenario-full-network.json \
   --action start|stop|status \
-  --timeout 300 \        # timeout para aguardar blocos
-  --skip-verify \        # pular verificação de contratos
-  --skip-setup \         # pular script de setup pós-genesis
-  --monitoring           # iniciar Prometheus + Grafana
+  --timeout 300 \        # Timeout waiting for block generation
+  --skip-verify \        # Skip contract verification
+  --skip-setup \         # Skip post-genesis setup script
+  --monitoring           # Boot Prometheus + Grafana stack
 ```
 
-### Monitoramento
+### Monitoring Stack
 
-Para visualizar métricas do plugin em tempo real:
+To view plugin metrics in real time:
 
 ```bash
-# Iniciar rede COM monitoramento
-python3 orchestrator.py -c configs/cenario-valioso.json -a start --monitoring
+# Start network with monitoring stack enabled
+python3 orchestrator.py -c configs/scenario-full-network.json -a start --monitoring
 
-# Acessar Grafana
+# Access Grafana Dashboard
 # URL: http://localhost:3000
-# Usuário: admin / Senha: admin
+# User: admin / Password: admin
 ```
 
-Métricas disponíveis no Grafana:
-- `besupermissioning_onchain_transaction_check_count_permitted_total` - Transações permitidas
-- `besupermissioning_onchain_transaction_check_count_denied_total` - Transações negadas
-- `besupermissioning_onchain_transaction_check_count_total` - Total verificadas
+Exposed Grafana Metrics:
+- `besupermissioning_onchain_transaction_check_count_permitted_total` - Permitted transactions
+- `besupermissioning_onchain_transaction_check_count_denied_total` - Denied transactions
+- `besupermissioning_onchain_transaction_check_count_total` - Total evaluated transactions
 
-Veja `monitoring/README.md` para mais detalhes.
+See `monitoring/README.md` for complete details.
 
 ---
 
-## 📦 Contratos Pré-Deployados no Genesis
+## 📦 Pre-Deployed Genesis Contracts
 
-O genesis (`templates/genesis.json`) é gerado via `scripts/generate-genesis.sh` a partir dos artifacts do forge, com storage layout correto. Contém todos os contratos GEN01 pré-configurados:
+Genesis (`templates/genesis.json`) is generated via `scripts/generate-genesis.sh` from forge build artifacts:
 
-| Contrato | Endereço |
-|----------|----------|
+| Contract | Address |
+| :--- | :--- |
 | Account Ingress | `0x0000000000000000000000000000000000008888` |
 | Node Ingress | `0x0000000000000000000000000000000000009999` |
 | Admin | `0x181a92c9b76ab7271a03b640cc172e75a0dc3484` |
 | AccountRules | `0x0e9e81bb09cdd55b607373e89e3154354a925b7d` |
 | NodeRules | `0xf01d20a2c5d466cc6a2bafd13bebac815aa5a616` |
 
-Admin (`0xf39Fd6e5...`) pré-autorizado no allowlist. Zero-gas configurado (`BESU_MIN_GAS_PRICE=0` + `BESU_TX_POOL_ENABLE_BALANCE_CHECK=false`).
-
 ---
 
-## 🔧 Plugin — Modo `TransactionSimulationService`
+## 📝 Test Scenario Matrix
 
-O plugin consulta contratos via API interna `TransactionSimulationService.simulate()` do Besu. Sem dependência de HTTP externo.
-
-| Variável | Obrigatória | Descrição |
-|----------|:-----------:|-----------|
-| `BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS` | **Sim** | Endereço do Account Ingress (ex: `0x0000...8888`) |
-| `BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS` | Não | Endereço do Node Ingress (fallback para Account Ingress) |
-
----
-
-## 📝 Cobertura de Cenários
-
-| Cenário | O que testa |
-|---------|------------|
-| **PF-01** | Admin (no allowlist) → transação APROVADA |
-| **PF-02** | Unauth (fora do allowlist) → transação BLOQUEADA (-32007) |
-| **FC-01** | Sem Ingress → FAIL-CLOSE (todas tx rejeitadas) |
-| **FC-02** | Ingress inválido → FAIL-CLOSE |
-| **CV** | Rede híbrida multi-versão Besu (25.12 + 26.5) |
-| **NR-01** | Nó rogue sem plugin → bypass comprovado |
-| **Heterogêneo** | Migração real: plugin + transparente coexistindo |
-| **E2E** | Deploy GEN02 + 50 transações + validação plugin |
+| Scenario | Description |
+| :--- | :--- |
+| **PF-01** | Admin account (on allowlist) -> Transaction APPROVED |
+| **PF-02** | Unauthorized account (not on allowlist) -> Transaction BLOCKED (-32007) |
+| **FC-01** | Empty Ingress -> FAIL-CLOSE (all transactions denied) |
+| **FC-02** | Invalid Ingress address -> FAIL-CLOSE |
+| **CV** | Multi-version Besu network (25.12 + 26.5) |
+| **NR-01** | Rogue node without plugin |
+| **Heterogeneous** | Coexistence test: plugin + transparent node |
+| **E2E** | End-to-end contract deployment + transaction execution |

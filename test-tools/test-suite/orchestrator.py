@@ -668,15 +668,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
-  ./run.sh -c configs/cenario-valioso.json -a start
-  ./run.sh -c configs/cenario-valioso.json -a start --monitoring
-  ./run.sh -c configs/cenario-failclose-sem-ingress.json -a start --skip-verify
-  ./run.sh -c configs/cenario-valioso.json -a stop
+  ./run.sh -c configs/scenario-full-network.json -a start
+  ./run.sh -c configs/scenario-full-network.json -a start --monitoring
+  ./run.sh -c configs/scenario-failclose-no-ingress.json -a start --skip-verify
+  ./run.sh -c configs/scenario-full-network.json -a stop
   ./run.sh -a status
         """
     )
-    parser.add_argument("--config", "-c", default="configs/cenario-valioso.json",
-                        help="Caminho do JSON de configuração da rede (default: configs/cenario-valioso.json)")
+    parser.add_argument("--config", "-c", default="configs/scenario-full-network.json",
+                        help="Caminho do JSON de configuração da rede (default: configs/scenario-full-network.json)")
     parser.add_argument("--action", "-a", choices=["start", "stop", "status"], default="start",
                         help="Ação a ser realizada na rede (default: start)")
     parser.add_argument("--skip-verify", action="store_true",

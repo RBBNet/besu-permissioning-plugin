@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
-Gerador de Transações Assinadas para o Plugin Permissioning Test Suite.
+Signed Transaction Generator for Besu Permissioning Plugin Test Suite.
 
-Gera raw transactions válidas (EIP-155) para usar com eth_sendRawTransaction
-na coleção Postman. Assina com a chainId correta da rede Besu local.
+Generates EIP-155 raw transactions for use with eth_sendRawTransaction
+in Postman collections and automated API test suites.
 
-Uso:
-  python3 gen-signed-tx.py                          # usa defaults (admin, rpc=9005)
-  python3 gen-signed-tx.py --account unauth         # conta bloqueada
-  python3 gen-signed-tx.py --rpc-url http://localhost:9001  # outro nó
-  python3 gen-signed-tx.py --nonce 5 --gas-price 1000000000  # valores específicos
-  python3 gen-signed-tx.py --json                   # saída JSON para Postman
+Usage:
+  python3 gen-signed-tx.py                          # Uses defaults (admin account)
+  python3 gen-signed-tx.py --account unauth         # Blocked account
+  python3 gen-signed-tx.py --rpc-url http://localhost:9001
+  python3 gen-signed-tx.py --json                   # JSON output format
 
-Dependências: pip3 install coincurve rlp eth-utils requests
+Dependencies: pip3 install coincurve rlp eth-utils requests
 """
 
 import argparse
@@ -41,15 +40,11 @@ except ImportError:
     HAS_ETH_UTILS = False
 
 
-# =============================================================================
-# Constantes — endereços e chaves do test-suite
-# =============================================================================
 ADMIN_PK  = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 ADMIN_ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 UNAUTH_PK  = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 UNAUTH_ADDR = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 
-# Contratos pré-deployados no genesis (cenario-valioso.json)
 ACCOUNT_RULES   = "0x0e9e81bb09cdd55b607373e89e3154354a925b7d"
 NODE_RULES      = "0xf01d20a2c5d466cc6a2bafd13bebac815aa5a616"
 ACCOUNT_INGRESS = "0x0000000000000000000000000000000000008888"
@@ -60,117 +55,58 @@ DEFAULT_RPC = "http://localhost:9005"
 DEFAULT_GAS_LIMIT = 21000
 
 
-# =============================================================================
-# Helpers
-# =============================================================================
+def rlp_encode(val) -> bytes:
+    if isinstance(val, int):
+        if val == 0:
+            return b"\x80"
+        hex_str = f"{val:x}"
+        if len(hex_str) % 2 != 0:
+            hex_str = "0" + hex_str
+        b = bytes.fromhex(hex_str)
+        if len(b) == 1 and b[0] < 0x80:
+            return b
+        return bytes([0x80 + len(b)]) + b
+    elif isinstance(val, bytes):
+        if len(val) == 1 and val[0] < 0x80:
+            return val
+        elif len(val) < 55:
+            return bytes([0x80 + len(val)]) + val
+        else:
+            len_b = bytes.fromhex(f"{len(val):x}")
+            return bytes([0xB7 + len(len_b)]) + len_b + val
+    elif isinstance(val, list):
+        payload = b"".join(rlp_encode(x) for x in val)
+        if len(payload) < 55:
+            return bytes([0xC0 + len(payload)]) + payload
+        else:
+            len_b = bytes.fromhex(f"{len(payload):x}")
+            return bytes([0xF7 + len(len_b)]) + len_b + payload
+    raise TypeError(f"Unsupported RLP type: {type(val)}")
 
-def die(msg: str) -> None:
-    print(f"\033[91m[ERRO]\033[0m {msg}")
-    if "ImportError" in msg or "pip3" in msg:
-        print("   Instale as dependências: pip3 install coincurve rlp eth-utils requests")
-    sys.exit(1)
 
-
-def keccak256(data: bytes) -> bytes:
-    """Hash Keccak-256."""
+def keccak256_hash(data: bytes) -> bytes:
     if HAS_ETH_UTILS:
         return keccak(data)
-    try:
-        from Crypto.Hash import keccak as lib_keccak
-        k = lib_keccak.new(digest_bits=256)
-        k.update(data)
-        return k.digest()
-    except ImportError:
-        die("Precisa de eth-utils ou pycryptodome. Instale: pip3 install eth-utils pycryptodome")
-
-
-def _int_to_bytes(value: int) -> bytes:
-    """Converte inteiro para bytes big-endian mínimos (sem prefixo RLP)."""
-    if value == 0:
-        return b""
-    hex_str = hex(value)[2:]
-    if len(hex_str) % 2:
-        hex_str = "0" + hex_str
-    raw = bytes.fromhex(hex_str)
-    return raw.lstrip(b"\x00")
-
-
-def _rlp_encode_item(item: bytes) -> bytes:
-    """RLP-encode a single byte-string item."""
-    if len(item) == 1 and item[0] < 0x80:
-        return item
-    elif len(item) < 56:
-        return bytes([0x80 + len(item)]) + item
     else:
-        return bytes([0xb7 + 1, len(item)]) + item
+        try:
+            from Crypto.Hash import keccak as pycryptodome_keccak
+            k = pycryptodome_keccak.new(digest_bits=256)
+            k.update(data)
+            return k.digest()
+        except ImportError:
+            sys.exit("❌ Error: Install dependencies via: pip3 install pycryptodome or eth-utils")
 
 
-def _rlp_encode_list(items: list) -> bytes:
-    """RLP-encode a list of raw byte strings."""
-    payload = b"".join(
-        _rlp_encode_item(i) if isinstance(i, bytes) else _rlp_encode_list(i)
-        for i in items
-    )
-    if len(payload) < 56:
-        return bytes([0xc0 + len(payload)]) + payload
+def sign_hash_secp256k1(msg_hash: bytes, private_key_bytes: bytes) -> Tuple[int, bytes, bytes]:
+    if HAS_COINCURVE:
+        pk = PrivateKey(private_key_bytes)
+        sig = pk.sign_recoverable(msg_hash, hasher=None)
+        r = sig[:32]
+        s = sig[32:64]
+        v_rec = sig[64]
+        return v_rec, r, s
     else:
-        return bytes([0xf7 + 1, len(payload)]) + payload
-
-
-def _rlp_encode_transaction(fields: list) -> bytes:
-    """
-    Codifica os 9 campos de transação Ethereum em RLP.
-    Campos: nonce, gasPrice, gasLimit, to, value, data, v, r, s.
-    Aceita ints (serão convertidos para bytes) e bytes.
-    """
-    encoded = []
-    for f in fields:
-        if isinstance(f, int):
-            encoded.append(_int_to_bytes(f))
-        elif isinstance(f, bytes):
-            encoded.append(f)
-        else:
-            encoded.append(f)
-    return _rlp_encode_list(encoded)
-
-
-def rpc_call(url: str, method: str, params: list = None) -> dict:
-    """Faz chamada JSON-RPC ao nó Besu."""
-    payload = {
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": params or [],
-        "id": 1,
-    }
-    try:
-        r = requests.post(url, json=payload, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        if "error" in data:
-            raise Exception(f"Erro RPC: {data['error']}")
-        return data["result"]
-    except requests.exceptions.ConnectionError:
-        die(f"Não foi possível conectar ao nó RPC em {url}. A rede está rodando?")
-    except Exception as e:
-        die(f"Falha na chamada RPC {method}: {e}")
-
-
-def fetch_chain_id(rpc_url: str) -> int:
-    """Obtém chainId do nó."""
-    result = rpc_call(rpc_url, "eth_chainId")
-    return int(result, 16)
-
-
-def fetch_nonce(rpc_url: str, address: str) -> int:
-    """Obtém nonce da conta."""
-    result = rpc_call(rpc_url, "eth_getTransactionCount", [address, "pending"])
-    return int(result, 16)
-
-
-def fetch_gas_price(rpc_url: str) -> int:
-    """Obtém gasPrice atual."""
-    result = rpc_call(rpc_url, "eth_gasPrice")
-    return int(result, 16)
+        sys.exit("❌ Error: Install coincurve via: pip3 install coincurve")
 
 
 def build_signed_transaction(
@@ -183,56 +119,27 @@ def build_signed_transaction(
     chain_id: int,
     data: bytes = b"",
 ) -> str:
-    """
-    Constrói e assina uma transação EIP-155.
-    Retorna o hex da transação assinada (pronto para eth_sendRawTransaction).
-    """
-    if not HAS_COINCURVE:
-        die("Precisa de coincurve. Instale: pip3 install coincurve")
+    pk_bytes = bytes.fromhex(private_key_hex)
+    to_bytes = bytes.fromhex(to_addr[2:]) if to_addr.startswith("0x") else bytes.fromhex(to_addr)
 
-    to_bytes = bytes.fromhex(to_addr[2:].lower())
-
-    # 9 campos da transação EIP-155 (unsigned: chainId no campo v, r/s vazios)
-    unsigned_fields = [
-        nonce,           # 0: nonce
-        gas_price,       # 1: gasPrice
-        gas_limit,       # 2: gasLimit
-        to_bytes,        # 3: to
-        value,           # 4: value
-        data,            # 5: data
-        chain_id,        # 6: v (chainId para o hash de signing)
-        b"",             # 7: r (vazio)
-        b"",             # 8: s (vazio)
+    unsigned_items = [
+        nonce,
+        gas_price,
+        gas_limit,
+        to_bytes,
+        value,
+        data,
+        chain_id,
+        b"",
+        b"",
     ]
+    encoded_unsigned = rlp_encode(unsigned_items)
+    tx_hash = keccak256_hash(encoded_unsigned)
 
-    if HAS_RLP:
-        raw_unsigned = rlp_lib.encode(unsigned_fields)
-    else:
-        raw_unsigned = _rlp_encode_transaction(unsigned_fields)
+    v_rec, r_bytes, s_bytes = sign_hash_secp256k1(tx_hash, pk_bytes)
+    v_eip155 = v_rec + 35 + (chain_id * 2)
 
-    # Hash da transação
-    tx_hash = keccak256(raw_unsigned)
-
-    # Assinar com coincurve (RFC6979 deterministic)
-    privkey = PrivateKey(bytes.fromhex(private_key_hex))
-    sig_recoverable = privkey.sign_recoverable(tx_hash, hasher=None)
-    # sig_recoverable: 65 bytes = r(32) + s(32) + rec_id(1)
-
-    r = int.from_bytes(sig_recoverable[:32], "big")
-    s_val = int.from_bytes(sig_recoverable[32:64], "big")
-    rec_id = sig_recoverable[64]
-
-    # EIP-2: low-s — se s > n/2, usar n-s e flipar rec_id
-    n_secp = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-    if s_val > n_secp // 2:
-        s_val = n_secp - s_val
-        rec_id ^= 1
-
-    # EIP-155: v = chain_id * 2 + 35 + rec_id
-    v_eip155 = chain_id * 2 + 35 + rec_id
-
-    # Montar transação assinada
-    signed_fields = [
+    signed_items = [
         nonce,
         gas_price,
         gas_limit,
@@ -240,65 +147,80 @@ def build_signed_transaction(
         value,
         data,
         v_eip155,
-        r,
-        s_val,
+        r_bytes.lstrip(b"\x00"),
+        s_bytes.lstrip(b"\x00"),
     ]
-
-    if HAS_RLP:
-        raw_signed = rlp_lib.encode(signed_fields)
-    else:
-        raw_signed = _rlp_encode_transaction(signed_fields)
-
-    return "0x" + raw_signed.hex()
+    encoded_signed = rlp_encode(signed_items)
+    return "0x" + encoded_signed.hex()
 
 
-# =============================================================================
-# Main
-# =============================================================================
+def rpc_call(url: str, method: str, params: list):
+    payload = {"jsonrpc": "2.0", "method": method, "params": params, "id": 1}
+    try:
+        resp = requests.post(url, json=payload, timeout=5)
+        resp.raise_for_status()
+        res = resp.json()
+        if "error" in res:
+            raise RuntimeError(f"RPC Error: {res['error']}")
+        return res["result"]
+    except requests.exceptions.RequestException as e:
+        sys.exit(f"❌ Failed connecting to node RPC ({url}): {e}")
+
+
+def fetch_chain_id(url: str) -> int:
+    res = rpc_call(url, "eth_chainId", [])
+    return int(res, 16)
+
+
+def fetch_nonce(url: str, addr: str) -> int:
+    res = rpc_call(url, "eth_getTransactionCount", [addr, "latest"])
+    return int(res, 16)
+
+
+def fetch_gas_price(url: str) -> int:
+    res = rpc_call(url, "eth_gasPrice", [])
+    return int(res, 16)
+
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Gerador de transações assinadas para o Plugin Permissioning Test Suite",
+        description="Signed Transaction Generator for Besu Permissioning Test Suite",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Exemplos:
-  # Transação da conta ADMIN (permitida)
+Examples:
+  # ADMIN account transaction (permitted)
   python3 gen-signed-tx.py
 
-  # Transação da conta UNAUTH (bloqueada)
+  # UNAUTH account transaction (blocked)
   python3 gen-signed-tx.py --account unauth
 
-  # Para outro endpoint RPC
+  # Target specific RPC endpoint
   python3 gen-signed-tx.py --rpc-url http://localhost:9001
 
-  # Especificar nonce e gas price manualmente (sem consultar nó)
-  python3 gen-signed-tx.py --nonce 0 --gas-price 0
-
-  # Saída JSON para uso em scripts
+  # Output JSON format
   python3 gen-signed-tx.py --json
         """,
     )
     parser.add_argument("--account", choices=["admin", "unauth"], default="admin",
-                        help="Conta que assina (admin=permitida, unauth=bloqueada). Default: admin")
+                        help="Signing account (admin=permitted, unauth=blocked). Default: admin")
     parser.add_argument("--rpc-url", default=DEFAULT_RPC,
-                        help=f"URL RPC do nó Besu. Default: {DEFAULT_RPC}")
+                        help=f"Besu node RPC URL. Default: {DEFAULT_RPC}")
     parser.add_argument("--nonce", type=int, default=None,
-                        help="Nonce da transação (auto-detecta se omitido)")
+                        help="Transaction nonce (auto-detected if omitted)")
     parser.add_argument("--gas-price", type=int, default=None,
-                        help="Gas price em wei (auto-detecta se omitido)")
+                        help="Gas price in wei (auto-detected if omitted)")
     parser.add_argument("--gas-limit", type=int, default=DEFAULT_GAS_LIMIT,
                         help=f"Gas limit. Default: {DEFAULT_GAS_LIMIT}")
     parser.add_argument("--value", type=int, default=1,
-                        help="Valor em wei a enviar. Default: 1")
+                        help="Value in wei. Default: 1")
     parser.add_argument("--to", type=str, default=None,
-                        help="Endereço de destino (default: self-transfer)")
+                        help="Target address (default: self-transfer)")
     parser.add_argument("--json", action="store_true",
-                        help="Saída em formato JSON")
+                        help="Output JSON format")
     parser.add_argument("--chain-id", type=int, default=None,
-                        help="Chain ID (auto-detecta se omitido)")
+                        help="Chain ID (auto-detected if omitted)")
     args = parser.parse_args()
 
-    # Selecionar conta
     if args.account == "admin":
         pk = ADMIN_PK
         addr = ADMIN_ADDR
@@ -306,27 +228,23 @@ Exemplos:
         pk = UNAUTH_PK
         addr = UNAUTH_ADDR
 
-    to_addr = args.to if args.to else addr  # self-transfer por padrão
+    to_addr = args.to if args.to else addr
 
-    # Obter chain ID
     if args.chain_id is not None:
         chain_id = args.chain_id
     else:
         chain_id = fetch_chain_id(args.rpc_url)
 
-    # Obter nonce
     if args.nonce is not None:
         nonce = args.nonce
     else:
         nonce = fetch_nonce(args.rpc_url, addr)
 
-    # Obter gas price
     if args.gas_price is not None:
         gas_price = args.gas_price
     else:
         gas_price = fetch_gas_price(args.rpc_url)
 
-    # Construir transação assinada
     raw_tx = build_signed_transaction(
         private_key_hex=pk,
         to_addr=to_addr,
@@ -355,22 +273,18 @@ Exemplos:
     else:
         print(f"""
 \033[92m{'='*70}\033[0m
-\033[1m  TRANSAÇÃO ASSINADA GERADA\033[0m
+\033[1m  GENERATED SIGNED TRANSACTION\033[0m
 \033[92m{'='*70}\033[0m
-  Conta:     {args.account.upper()} ({addr})
-  Destino:   {to_addr}
+  Account:   {args.account.upper()} ({addr})
+  Target:    {to_addr}
   Chain ID:  {chain_id} (0x{chain_id:x})
   Nonce:     {nonce}
   Gas Price: {gas_price} wei ({gas_price/1e9:.1f} gwei)
   Gas Limit: {args.gas_limit}
-  Valor:     {args.value} wei
+  Value:     {args.value} wei
 
 \033[1m  Raw Transaction (eth_sendRawTransaction):\033[0m
 \033[96m  {raw_tx}\033[0m
-
-\033[90m  # Copie o hex acima para a variável da coleção Postman
-  #   ADMIN_SIGNED_TX (para --account admin)
-  #   UNAUTH_SIGNED_TX (para --account unauth)\033[0m
 """)
 
 

@@ -67,7 +67,7 @@ check_network() {
         http://localhost:9005 &>/dev/null; then
         log_warn "Rede Besu não detectada na porta 9005."
         log_warn "Inicie a rede antes de rodar benchmarks:"
-        log_warn "  cd $TEST_SUITE_DIR && python3 orchestrator.py -c configs/cenario-valioso.json -a start"
+        log_warn "  cd $TEST_SUITE_DIR && python3 orchestrator.py -c configs/scenario-full-network.json -a start"
         return 1
     fi
 

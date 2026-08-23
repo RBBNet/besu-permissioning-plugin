@@ -1,14 +1,10 @@
 # On-Chain Testbench
 
-Testbench modular para validação de permissionamento on-chain em redes Hyperledger Besu. Orquestra redes completas, injeta falhas e valida políticas de governança via DSL fluente Java.
+A modular Java testbench for validating on-chain permissioning policies in Hyperledger Besu networks. It orchestrates network container topologies, injects network scenarios, and verifies permissioning rules using a fluent Java DSL.
 
-## Plugin — eth_call
+## Project Structure
 
-O plugin foi migrado de `TransactionSimulator` para consulta via `eth_call` (JSON-RPC). Elimina incompatibilidades com opcodes Shanghai/Cancun (PUSH0, mcopy) em contratos compilados com Solc 0.8.28.
-
-## Estrutura
-
-```
+```text
 onchain-testbench/
 ├── src/main/java/org/hyperledger/besu/testframework/
 │   ├── contracts/          # GenesisStrategy, PermissioningStrategy
@@ -18,24 +14,24 @@ onchain-testbench/
 │   ├── reporting/          # SuperLog, TestReporter, Evidence
 │   └── scenarios/          # FailClose, CacheInvalidation, etc.
 ├── src/test/java/org/hyperledger/besu/testframework/
-│   ├── FrameworkUnitTest.java        # Testes unitários
-│   ├── MultiVersionPluginTest.java   # Compatibilidade multi-versão Besu
-│   ├── SuperLogTest.java             # Relatórios de evidência
-│   └── SmokeTest.java               # End-to-end (requer Docker)
+│   ├── FrameworkUnitTest.java        # Unit tests
+│   ├── MultiVersionPluginTest.java   # Besu multi-version compatibility
+│   ├── SuperLogTest.java             # Evidence reporting tests
+│   └── SmokeTest.java               # End-to-end integration (requires Docker)
 ├── build.gradle
-├── genesis.json                      # Genesis com Ingresses
-└── genesis-evolution.json            # Genesis com contratos pré-deployados
+├── genesis.json                      # Ingress contract genesis
+└── genesis-evolution.json            # Pre-deployed contract genesis
 ```
 
-## Testes
+## Running Tests
 
 ```bash
-cd plugin-permissioned-rbb-integra/onchain-testbench
+cd test-tools/onchain-testbench
 
-# Unitários (sem Docker)
-gradle test --tests "*FrameworkUnitTest" --tests "*SuperLogTest"
+# Unit tests (without Docker)
+./gradlew test --tests "*FrameworkUnitTest" --tests "*SuperLogTest"
 
-# Integração (requer Docker + plugin JAR)
-gradle test --tests "*MultiVersionPluginTest" -DrunIntegration=true
-gradle test --tests "*SmokeTest" -DrunIntegration=true
+# Integration tests (requires Docker daemon)
+./gradlew test --tests "*MultiVersionPluginTest" -DrunIntegration=true
+./gradlew test --tests "*SmokeTest" -DrunIntegration=true
 ```
