@@ -40,8 +40,10 @@ except ImportError:
     HAS_ETH_UTILS = False
 
 
+# Standard Anvil/Hardhat public test key — DO NOT USE IN PRODUCTION
 ADMIN_PK  = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 ADMIN_ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+# Standard Anvil/Hardhat public test key — DO NOT USE IN PRODUCTION
 UNAUTH_PK  = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 UNAUTH_ADDR = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 

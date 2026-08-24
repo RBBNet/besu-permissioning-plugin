@@ -47,8 +47,10 @@ DEFAULT_CONTRACTS = {
     "account_rules":        "0x0e9e81bb09cdd55b607373e89e3154354a925b7d",
     "node_rules":           "0xf01d20a2c5d466cc6a2bafd13bebac815aa5a616",
     "admin_addr":           "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    # Standard Anvil/Hardhat public test key — DO NOT USE IN PRODUCTION
     "admin_pk":             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
     "unauth_addr":          "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    # Standard Anvil/Hardhat public test key — DO NOT USE IN PRODUCTION
     "unauth_pk":            "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
 }
 

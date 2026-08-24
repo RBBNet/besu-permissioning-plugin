@@ -4,7 +4,7 @@
 
 If you discover a potential security vulnerability in this plugin, please do NOT create a public GitHub issue.
 
-Instead, please report security concerns directly to the project maintainers or security contacts via email.
+Instead, please report security concerns directly to the Hyperledger Security Team at `security@hyperledger.org` or submit a report via GitHub Private Vulnerability Reporting.
 
 ### What to Include in a Vulnerability Report
 
