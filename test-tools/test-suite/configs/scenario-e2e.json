@@ -1,25 +1,25 @@
 {
-  "nome_rede": "plugin-e2e-test",
-  "descricao": "Teste end-to-end: 1 nó sem plugin p/ deploy, 1 nó com plugin p/ validar permissionamento.",
+  "network_name": "plugin-e2e-test",
+  "description": "End-to-end test: 1 node without plugin for deployment, 1 node with plugin for permissioning validation.",
   "sync_min_peers": 0,
-  "plugin_jar_path": "../../build/libs/onchain-permissioning-plugin.jar",
-  "nos": [
+  "plugin_jar_path": "../../build/libs/besu-plugin-permissioning.jar",
+  "nodes": [
     {
-      "nome": "deploy-node",
-      "tipo": "bootnode",
-      "porta_rpc": 9001,
-      "porta_metrics": 9541,
-      "versao_besu": "26.5.0",
-      "usar_plugin": false,
+      "name": "deploy-node",
+      "role": "bootnode",
+      "rpc_port": 9001,
+      "metrics_port": 9541,
+      "besu_version": "26.5.0",
+      "use_plugin": false,
       "private_key": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     },
     {
-      "nome": "plugin-node",
-      "tipo": "validator",
-      "porta_rpc": 9002,
-      "porta_metrics": 9542,
-      "versao_besu": "26.5.0",
-      "usar_plugin": true,
+      "name": "plugin-node",
+      "role": "validator",
+      "rpc_port": 9002,
+      "metrics_port": 9542,
+      "besu_version": "26.5.0",
+      "use_plugin": true,
       "ingress_address": "0x0000000000000000000000000000000000008888",
       "node_ingress_address": ""
     }

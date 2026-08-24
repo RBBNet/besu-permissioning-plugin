@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """
-Orquestrador Dinâmico de Testes do Plugin Sandbox
-Gerencia o ciclo de vida de redes Besu customizáveis, suportando
-múltiplas versões de nós, ativação seletiva do plugin de permissionamento
-e verificação de contratos on-chain.
+Dynamic Plugin Sandbox Test Orchestrator
+Manages the lifecycle of customizable Besu networks, supporting
+multiple node versions, selective activation of the permissioning plugin,
+and on-chain contract verification.
 
-Evolução v2: Suporte a contratos GEN1/GEN2 pré-deployados no genesis,
-verificação on-chain, e setup automático configurável.
+Evolution v2: Support for GEN1/GEN2 contracts pre-deployed in genesis,
+on-chain verification, and configurable automatic setup.
 """
 
 import os
@@ -20,7 +20,7 @@ import subprocess
 import time
 from datetime import datetime
 
-# Cores ANSI para o terminal
+# ANSI terminal colors
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
 RED = "\033[91m"
@@ -35,12 +35,11 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 SCRIPTS_DIR = os.path.join(BASE_DIR, "scripts")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 
-# Endereços padrão dos contratos pré-deployados no genesis (genesis-evolution.json)
-# Endereços dos contratos pré-deployados no genesis (genesis-evolution.json)
-# Admin + AccountRules + NodeRules já vêm com storage configurado:
-#   - Admin registrado nos Ingresses (chave "admin" → Admin contract)
-#   - Rules registradas nos Ingresses (chave "rules" → AccountRules/NodeRules)
-#   - Admin (0xf39Fd6e5...) no allowlist do Admin contract e AccountRules
+# Standard contract addresses pre-deployed in genesis (genesis-evolution.json)
+# Admin + AccountRules + NodeRules pre-configured with storage:
+#   - Admin registered in Ingresses ("admin" key -> Admin contract)
+#   - Rules registered in Ingresses ("rules" key -> AccountRules/NodeRules)
+#   - Admin (0xf39Fd6e5...) in allowlist of Admin contract and AccountRules
 DEFAULT_CONTRACTS = {
     "account_ingress":      "0x0000000000000000000000000000000000008888",
     "node_ingress":         "0x0000000000000000000000000000000000009999",
@@ -57,20 +56,20 @@ def log_info(msg):
     print(f"{BLUE}[INFO]{RESET} {msg}")
 
 def log_success(msg):
-    print(f"{GREEN}[SUCESSO]{RESET} {msg}")
+    print(f"{GREEN}[SUCCESS]{RESET} {msg}")
 
 def log_warning(msg):
-    print(f"{YELLOW}[AVISO]{RESET} {msg}")
+    print(f"{YELLOW}[WARNING]{RESET} {msg}")
 
 def log_error(msg):
-    print(f"{RED}[ERRO]{RESET} {msg}")
+    print(f"{RED}[ERROR]{RESET} {msg}")
 
 def check_docker():
-    """Valida se o docker e docker-compose estão instalados e rodando."""
+    """Validates that Docker and docker-compose are installed and running."""
     try:
         subprocess.run(["docker", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     except Exception:
-        log_error("Docker não encontrado! Certifique-se de que o Docker está instalado e no seu PATH.")
+        log_error("Docker not found! Make sure Docker is installed and available in your PATH.")
         sys.exit(1)
 
     try:
@@ -81,47 +80,47 @@ def check_docker():
             subprocess.run(["docker-compose", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
             return "docker-compose"
         except Exception:
-            log_error("Comando 'docker compose' ou 'docker-compose' não encontrado!")
+            log_error("Command 'docker compose' or 'docker-compose' not found!")
             sys.exit(1)
 
 def build_plugin_if_needed(plugin_path):
-    """Verifica se o plugin JAR existe, senão avisa ou tenta compilar."""
+    """Verifies that the plugin JAR exists, or attempts to compile it."""
     abs_plugin_path = os.path.abspath(os.path.join(BASE_DIR, plugin_path))
     if os.path.exists(abs_plugin_path):
-        log_success(f"Plugin encontrado em: {abs_plugin_path}")
+        log_success(f"Plugin found at: {abs_plugin_path}")
         return abs_plugin_path
 
-    log_warning(f"Plugin JAR não encontrado em: {abs_plugin_path}")
+    log_warning(f"Plugin JAR not found at: {abs_plugin_path}")
     plugin_project_dir = os.path.abspath(os.path.join(BASE_DIR, "../.."))
 
     if os.path.exists(os.path.join(plugin_project_dir, "gradlew")):
-        print(f"\n{YELLOW}Tentando compilar o plugin automaticamente usando Gradle...{RESET}")
+        print(f"\n{YELLOW}Attempting to build plugin automatically using Gradle...{RESET}")
         try:
             subprocess.run(["./gradlew", "shadowJar"], cwd=plugin_project_dir, check=True)
-            candidate = os.path.join(plugin_project_dir, "build/libs/onchain-permissioning-plugin.jar")
+            candidate = os.path.join(plugin_project_dir, "build/libs/besu-plugin-permissioning.jar")
             if os.path.exists(candidate):
-                log_success("Plugin compilado com sucesso!")
+                log_success("Plugin compiled successfully!")
                 return candidate
         except Exception as e:
-            log_error(f"Falha ao rodar build do plugin: {e}")
+            log_error(f"Failed to build plugin: {e}")
 
-    log_error("Impossível prosseguir sem o plugin JAR compilado.")
-    log_info("Por favor, compile o plugin executando './gradlew shadowJar' no diretório do plugin.")
+    log_error("Cannot proceed without compiled plugin JAR.")
+    log_info("Please compile the plugin by running './gradlew shadowJar' in the plugin root directory.")
     sys.exit(1)
 
 def load_config(config_path):
-    """Carrega o JSON de configuração da rede e mescla contratos padrão."""
+    """Loads network configuration JSON and merges default contracts."""
     if not os.path.exists(config_path):
-        log_error(f"Arquivo de configuração não encontrado: {config_path}")
+        log_error(f"Configuration file not found: {config_path}")
         sys.exit(1)
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
     except Exception as e:
-        log_error(f"Erro ao parsear arquivo JSON: {e}")
+        log_error(f"Error parsing JSON configuration file: {e}")
         sys.exit(1)
 
-    # Mesclar contratos padrão (config do cenário sobrescreve defaults)
+    # Merge default contracts (scenario config overrides defaults)
     if "contracts" not in config:
         config["contracts"] = {}
     for k, v in DEFAULT_CONTRACTS.items():
@@ -131,7 +130,7 @@ def load_config(config_path):
     return config
 
 def rpc_call(rpc_url, method, params=None):
-    """Faz chamada JSON-RPC e retorna o resultado parseado."""
+    """Executes a JSON-RPC call and returns the parsed result."""
     import urllib.request
     payload = {"jsonrpc": "2.0", "method": method, "params": params or [], "id": 1}
     data = json.dumps(payload).encode("utf-8")
@@ -145,55 +144,57 @@ def rpc_call(rpc_url, method, params=None):
         return None
 
 def wait_for_blocks(config, timeout=120):
-    """Aguarda até que pelo menos um nó esteja produzindo blocos.
-    Prefere nós sem plugin (para deploy), depois qualquer nó com RPC."""
-    nos = config.get("nos", [])
+    """Waits until at least one node is producing blocks.
+    Prefers nodes without plugin (for deployment), then any node with RPC."""
+    nos = config.get("nodes", []) or config.get("nos", [])
 
-    # Prioridade: nós sem plugin primeiro (para deploy), depois qualquer nó com RPC
-    deploy_nodes = [n for n in nos if "porta_rpc" in n and not n.get("usar_plugin", False)]
-    plugin_nodes = [n for n in nos if "porta_rpc" in n and n.get("usar_plugin", False)]
+    # Priority: nodes without plugin first (for deployment), then any RPC node
+    deploy_nodes = [n for n in nos if ("rpc_port" in n or "porta_rpc" in n) and not (n.get("use_plugin") if "use_plugin" in n else n.get("usar_plugin", False))]
+    plugin_nodes = [n for n in nos if ("rpc_port" in n or "porta_rpc" in n) and (n.get("use_plugin") if "use_plugin" in n else n.get("usar_plugin", False))]
     check_order = deploy_nodes + plugin_nodes
 
     if not check_order:
-        check_order = [n for n in nos if "porta_rpc" in n]
+        check_order = [n for n in nos if ("rpc_port" in n or "porta_rpc" in n)]
 
-    log_info(f"Aguardando rede iniciar (timeout: {timeout}s)...")
+    log_info(f"Waiting for network to start (timeout: {timeout}s)...")
     start = time.time()
 
     while time.time() - start < timeout:
         for no in check_order:
-            rpc_url = f"http://localhost:{no['porta_rpc']}"
+            port = no.get("rpc_port") or no.get("porta_rpc")
+            name = no.get("name") or no.get("nome")
+            use_plugin = no.get("use_plugin") if "use_plugin" in no else no.get("usar_plugin", False)
+            rpc_url = f"http://localhost:{port}"
             block = rpc_call(rpc_url, "eth_blockNumber")
             if block and block != "0x0":
                 elapsed = int(time.time() - start)
-                plugin_status = "sem plugin" if not no.get("usar_plugin", False) else "com plugin"
-                log_success(f"Rede pronta! Bloco {block} em {no['nome']} ({plugin_status}, porta {no['porta_rpc']}) após {elapsed}s")
+                plugin_status = "without plugin" if not use_plugin else "with plugin"
+                log_success(f"Network ready! Block {block} on {name} ({plugin_status}, port {port}) after {elapsed}s")
                 return True, rpc_url, block
         time.sleep(3)
 
-    log_warning(f"Timeout ({timeout}s): rede não produziu blocos.")
-    log_warning("  Isso é esperado em cenários Fail-Close (FC-01, FC-02) onde o plugin bloqueia tudo.")
+    log_warning(f"Timeout ({timeout}s): network produced no blocks.")
+    log_warning("  This is expected in Fail-Close scenarios (FC-01, FC-02) where the plugin blocks everything.")
     return False, None, "0x0"
 
 def verify_contracts(rpc_url, contracts, config):
-    """Verifica se os contratos pré-deployados estão acessíveis on-chain."""
+    """Verifies that pre-deployed contracts are accessible on-chain."""
     c = contracts
-    nos = config.get("nos", [])
+    nos = config.get("nos", []) or config.get("nodes", [])
 
-    # Determinar se é cenário fail-close (ingress vazio ou inválido)
+    # Determine if this is a fail-close scenario (empty or invalid ingress)
     primeiro_no = nos[0] if nos else {}
     ingress = primeiro_no.get("ingress_address", "")
-    usar_plugin = primeiro_no.get("usar_plugin", False)
 
-    # Em cenários fail-close, a rede pode não produzir blocos
+    # In fail-close scenarios, network might not produce blocks
     if not rpc_url:
         if ingress == "":
-            log_info("Cenário FC-01 (sem ingress): verificações on-chain não se aplicam (fail-close ativo).")
-        elif ingress not in [c["account_ingress"], c["node_ingress"]]:
-            log_info("Cenário FC-02 (ingress inválido): verificações on-chain não se aplicam (fail-close ativo).")
-        return True  # Não é falha, é comportamento esperado
+            log_info("Scenario FC-01 (no ingress): on-chain checks not applicable (fail-close active).")
+        elif ingress not in [c.get("account_ingress"), c.get("node_ingress")]:
+            log_info("Scenario FC-02 (invalid ingress): on-chain checks not applicable (fail-close active).")
+        return True  # Expected behavior, not a failure
 
-    log_info("Verificando contratos on-chain...")
+    log_info("Verifying contracts on-chain...")
     all_ok = True
 
     to_check = []
@@ -209,18 +210,18 @@ def verify_contracts(rpc_url, contracts, config):
         to_check.append((c["node_rules"], "NodeRules"))
 
     if not to_check:
-        log_info("  Nenhum contrato configurado para verificação.")
+        log_info("  No contracts configured for verification.")
         return True
 
     for addr, label in to_check:
         code = rpc_call(rpc_url, "eth_getCode", [addr, "latest"])
         if code and len(code) > 4:
-            log_success(f"  ✓ {label} ({addr[:10]}...) — {len(code)} chars de bytecode")
+            log_success(f"  ✓ {label} ({addr[:10]}...) — {len(code)} chars bytecode")
         else:
-            log_warning(f"  ⚠ {label} ({addr[:10]}...) — não encontrado (pode não ter sido deployado ainda)")
+            log_warning(f"  ⚠ {label} ({addr[:10]}...) — not found (may not be deployed yet)")
             all_ok = False
 
-    # Verificar se Admin está autorizado no AccountRules (se deployado)
+    # Verify if Admin is authorized in AccountRules (if deployed)
     if c.get("account_rules") and c.get("admin_addr"):
         permitted = rpc_call(rpc_url, "eth_call", [
             {"to": c["account_rules"],
@@ -228,21 +229,21 @@ def verify_contracts(rpc_url, contracts, config):
             "latest"
         ])
         if permitted and permitted != "0x" and int(permitted, 16) == 1:
-            log_success(f"  ✓ Admin ({c['admin_addr'][:10]}...) está PERMITIDO no AccountRules")
+            log_success(f"  ✓ Admin ({c['admin_addr'][:10]}...) is PERMITTED in AccountRules")
         else:
-            log_warning(f"  ⚠ Admin ({c['admin_addr'][:10]}...) NÃO está no allowlist (pode ser esperado)")
+            log_warning(f"  ⚠ Admin ({c['admin_addr'][:10]}...) NOT in allowlist (may be expected)")
 
     return all_ok
 
 def generate_keys_and_get_bootnode(nos, run_dir, compose_cmd):
-    """Gera chaves determinísticas para cada nó e exporta a chave pública do bootnode."""
+    """Generates deterministic keys for each node and exports the bootnode public key."""
     bootnode_pubkey = None
     bootnode_service_name = None
 
     for i, no in enumerate(nos):
-        no_name = no.get("nome") or no.get("name")
+        no_name = no.get("name") or no.get("nome")
         if not no_name:
-            no_name = f"no-{i + 1}"
+            no_name = f"node-{i + 1}"
         no_dir = os.path.join(run_dir, "volumes", no_name)
         os.makedirs(no_dir, exist_ok=True)
 
@@ -254,13 +255,14 @@ def generate_keys_and_get_bootnode(nos, run_dir, compose_cmd):
         with open(key_file_path, 'w', encoding='utf-8') as f:
             f.write(private_key)
 
-        tipo = no.get("tipo") or no.get("role", "")
+        tipo = no.get("role") or no.get("type") or no.get("tipo", "")
         if tipo == "bootnode":
             bootnode_service_name = no_name
             pubkey_file = os.path.join(no_dir, "key.pub")
 
-            log_info(f"Exportando chave pública do bootnode ({no_name})...")
-            image_name = f"hyperledger/besu:{no.get('versao_besu', '25.12.0')}"
+            log_info(f"Exporting bootnode public key ({no_name})...")
+            versao = no.get("besu_version") or no.get("versao_besu", "25.12.0")
+            image_name = f"hyperledger/besu:{versao}"
             try:
                 subprocess.run([
                     "docker", "run", "--rm",
@@ -276,18 +278,18 @@ def generate_keys_and_get_bootnode(nos, run_dir, compose_cmd):
                         bootnode_pubkey = f.read().strip()
                         if bootnode_pubkey.startswith("0x"):
                             bootnode_pubkey = bootnode_pubkey[2:]
-                    log_success(f"Chave pública do bootnode obtida: {bootnode_pubkey[:10]}...")
+                    log_success(f"Bootnode public key retrieved: {bootnode_pubkey[:10]}...")
             except Exception as e:
-                log_error(f"Erro ao exportar chave pública do bootnode: {e}")
-                log_warning("Usando chave pública estática fallback correspondente à chave privada '1'")
+                log_error(f"Error exporting bootnode public key: {e}")
+                log_warning("Using fallback static public key corresponding to private key '1'")
                 bootnode_pubkey = "7a6d8011244d2d9a65f0992f2272de9f3c7fa6e0b741004a43eb37651a541603ba05b0c950a7c490a1608888b15a6b4d238ff944bacb478cbed5efcae784d7bf"
 
     return bootnode_pubkey, bootnode_service_name
 
 def generate_docker_compose(config, plugin_path, bootnode_pubkey, bootnode_service):
-    """Gera o arquivo docker-compose.yml dinamicamente com suporte a zero-gas e contratos."""
-    nome_rede = config.get("nome_rede", "plugin-testnet")
-    nos = config.get("nos", [])
+    """Generates the docker-compose.yml file dynamically with zero-gas and contract support."""
+    nome_rede = config.get("network_name") or config.get("nome_rede", "plugin-testnet")
+    nos = config.get("nodes") or config.get("nos", [])
 
     compose = {
         "version": "3.4",
@@ -301,10 +303,10 @@ def generate_docker_compose(config, plugin_path, bootnode_pubkey, bootnode_servi
     }
 
     for no in nos:
-        no_name = no.get("nome") or no.get("name")
-        tipo = no.get("tipo") or no.get("role", "")
-        versao = no.get("versao_besu", "latest")
-        usar_plugin = no.get("usar_plugin", False)
+        no_name = no.get("name") or no.get("nome")
+        tipo = no.get("role") or no.get("type") or no.get("tipo", "")
+        versao = no.get("besu_version") or no.get("versao_besu", "latest")
+        usar_plugin = no.get("use_plugin") if "use_plugin" in no else no.get("usar_plugin", False)
 
         image = f"hyperledger/besu:{versao}" if versao != "latest" else "hyperledger/besu:latest"
 
@@ -350,20 +352,20 @@ def generate_docker_compose(config, plugin_path, bootnode_pubkey, bootnode_servi
         cmd_args.append("--metrics-host=0.0.0.0")
         cmd_args.append("--metrics-port=9545")
 
-        # Ambiente base
+        # Base environment
         env = {
             "LOG4J_CONFIGURATION_FILE": "/var/lib/besu/log.xml",
             "BESU_MIN_GAS_PRICE": "0",
         }
 
-        # Desabilita verificação de saldo para tx zero-gas (contas sem ETH podem transacionar)
+        # Disable balance check for zero-gas tx (accounts without ETH can transact)
         if usar_plugin:
             env["BESU_TX_POOL_ENABLE_BALANCE_CHECK"] = "false"
 
-        # Permissionamento: suporta 3 modos
-        #   "plugin"  — usar_plugin=true + ingress (padrão quando usar_plugin=true)
-        #   "native"  — usar_plugin=false + ingress (Besu nativo, sem plugin JAR)
-        #   "none"    — usar_plugin=false + sem ingress (transparente)
+        # Permissioning: supports 3 modes
+        #   "plugin"  — usar_plugin=true + ingress (default when usar_plugin=true)
+        #   "native"  — usar_plugin=false + ingress (Besu native, no plugin JAR)
+        #   "none"    — usar_plugin=false + no ingress (transparent)
         perm_mode = no.get("permissioning_mode",
                    "plugin" if usar_plugin else "none")
 
@@ -385,10 +387,12 @@ def generate_docker_compose(config, plugin_path, bootnode_pubkey, bootnode_servi
             env["BESU_PERMISSIONS_NODES_CONTRACT_ENABLED"] = str(node_enabled).lower()
 
         ports = []
-        if "porta_rpc" in no:
-            ports.append(f"{no['porta_rpc']}:8545")
-        if "porta_metrics" in no:
-            ports.append(f"{no['porta_metrics']}:9545")
+        rpc_p = no.get("rpc_port") or no.get("porta_rpc")
+        if rpc_p:
+            ports.append(f"{rpc_p}:8545")
+        metrics_p = no.get("metrics_port") or no.get("porta_metrics")
+        if metrics_p:
+            ports.append(f"{metrics_p}:9545")
 
         service_cfg = {
             "image": image,
@@ -417,14 +421,14 @@ def generate_docker_compose(config, plugin_path, bootnode_pubkey, bootnode_servi
     return compose_path
 
 def setup_files(config):
-    """Prepara os arquivos genesis e log.xml."""
+    """Prepares genesis.json and log.xml files."""
     os.makedirs(RUN_DIR, exist_ok=True)
 
     genesis_template = os.path.join(TEMPLATES_DIR, "genesis.json")
     genesis_dest = os.path.join(RUN_DIR, "genesis.json")
     if os.path.exists(genesis_template):
         shutil.copy2(genesis_template, genesis_dest)
-        # Verificar quais contratos estão no genesis
+        # Check pre-deployed contracts in genesis
         try:
             with open(genesis_dest, 'r') as f:
                 gen = json.load(f)
@@ -436,13 +440,13 @@ def setup_files(config):
                     comment = data.get("comment", "")
                     contratos_no_genesis.append(f"  {addr} — {comment}" if comment else f"  {addr}")
             if contratos_no_genesis:
-                log_success(f"Genesis carregado com {len(contratos_no_genesis)} contratos pré-deployados:")
+                log_success(f"Genesis loaded with {len(contratos_no_genesis)} pre-deployed contracts:")
                 for c in contratos_no_genesis:
                     print(f"    {c}")
         except Exception:
             pass
     else:
-        log_error(f"Arquivo de genesis modelo não encontrado em: {genesis_template}")
+        log_error(f"Genesis template file not found at: {genesis_template}")
         sys.exit(1)
 
     log_template = os.path.join(TEMPLATES_DIR, "log.xml")
@@ -451,19 +455,19 @@ def setup_files(config):
         shutil.copy2(log_template, log_dest)
 
 def capture_logs(config, run_tag=None):
-    """Captura logs Docker de todos os contêineres e salva em logs/<timestamp>/."""
+    """Captures Docker logs from all containers and saves them in logs/<timestamp>/."""
     if not run_tag:
         run_tag = datetime.now().strftime("%Y%m%d-%H%M%S")
     log_dir = os.path.join(LOGS_DIR, run_tag)
     os.makedirs(log_dir, exist_ok=True)
 
-    nome_rede = config.get("nome_rede", "plugin-testnet")
-    nos = config.get("nos", [])
+    nome_rede = config.get("network_name") or config.get("nome_rede", "plugin-testnet")
+    nos = config.get("nodes") or config.get("nos", [])
 
-    log_info(f"Capturando logs Docker em: {log_dir}")
+    log_info(f"Capturing Docker logs in: {log_dir}")
 
     for no in nos:
-        no_name = no.get("nome") or no.get("name")
+        no_name = no.get("name") or no.get("nome")
         container_name = f"{nome_rede}-{no_name}"
         log_file = os.path.join(log_dir, f"{no_name}.log")
 
@@ -475,33 +479,34 @@ def capture_logs(config, run_tag=None):
             with open(log_file, 'w', encoding='utf-8') as f:
                 f.write(result.stdout)
             lines = result.stdout.count('\n')
-            log_success(f"  {no_name}: {lines} linhas → {log_file}")
+            log_success(f"  {no_name}: {lines} lines → {log_file}")
         except subprocess.TimeoutExpired:
-            log_warning(f"  {no_name}: timeout (logs muito grandes), capturando head...")
+            log_warning(f"  {no_name}: timeout (logs too large), capturing tail...")
             try:
                 result = subprocess.run(
                     ["docker", "logs", "--tail", "5000", container_name],
                     capture_output=True, text=True, timeout=15
                 )
                 with open(log_file, 'w', encoding='utf-8') as f:
-                    f.write(f"# LOG TRUNCADO (últimas 5000 linhas) — container: {container_name}\n")
+                    f.write(f"# TRUNCATED LOG (last 5000 lines) — container: {container_name}\n")
                     f.write(result.stdout)
-                log_warning(f"  {no_name}: {result.stdout.count(chr(10))} linhas (truncado) → {log_file}")
+                log_warning(f"  {no_name}: {result.stdout.count(chr(10))} lines (truncated) → {log_file}")
             except Exception:
-                log_error(f"  {no_name}: falha total ao capturar logs")
+                log_error(f"  {no_name}: total failure capturing logs")
         except Exception as e:
-            log_error(f"  {no_name}: erro ao capturar logs — {e}")
+            log_error(f"  {no_name}: error capturing logs — {e}")
 
-    # Salvar metadata da execução
+    # Save run metadata
     meta = {
         "run_tag": run_tag,
         "timestamp": datetime.now().isoformat(),
-        "config": config.get("nome_rede", "unknown"),
-        "descricao": config.get("descricao", ""),
-        "nodes": [{"nome": n.get("nome"), "tipo": n.get("tipo"),
-                    "versao_besu": n.get("versao_besu"),
-                    "usar_plugin": n.get("usar_plugin"),
-                    "porta_rpc": n.get("porta_rpc")}
+        "config": config.get("network_name") or config.get("nome_rede", "unknown"),
+        "description": config.get("description") or config.get("descricao", ""),
+        "nodes": [{"name": n.get("name") or n.get("nome"),
+                    "type": n.get("role") or n.get("type") or n.get("tipo"),
+                    "besu_version": n.get("besu_version") or n.get("versao_besu"),
+                    "use_plugin": n.get("use_plugin") if "use_plugin" in n else n.get("usar_plugin"),
+                    "rpc_port": n.get("rpc_port") or n.get("porta_rpc")}
                   for n in nos],
         "contracts": config.get("contracts", {}),
     }
@@ -513,17 +518,17 @@ def capture_logs(config, run_tag=None):
     return log_dir
 
 def run_setup_script(config, rpc_url):
-    """Executa script de setup pós-genesis se configurado no cenário."""
+    """Executes post-genesis setup script if configured in scenario."""
     setup_script = config.get("setup_script")
     if not setup_script:
         return True
 
     script_path = os.path.join(BASE_DIR, setup_script)
     if not os.path.exists(script_path):
-        log_warning(f"Script de setup não encontrado: {script_path}")
+        log_warning(f"Setup script not found: {script_path}")
         return False
 
-    log_info(f"Executando script de setup: {setup_script}")
+    log_info(f"Executing setup script: {setup_script}")
 
     c = config.get("contracts", {})
     env = os.environ.copy()
@@ -552,122 +557,126 @@ def run_setup_script(config, rpc_url):
         if result.stdout:
             print(result.stdout)
         if result.returncode == 0:
-            log_success("Script de setup concluído.")
+            log_success("Setup script completed.")
             return True
         else:
-            log_error(f"Script de setup falhou (exit={result.returncode})")
+            log_error(f"Setup script failed (exit={result.returncode})")
             if result.stderr:
                 log_error(result.stderr[:500])
             return False
     except subprocess.TimeoutExpired:
-        log_error("Script de setup excedeu timeout (120s)")
+        log_error("Setup script timed out (120s)")
         return False
     except Exception as e:
-        log_error(f"Erro ao executar script de setup: {e}")
+        log_error(f"Error executing setup script: {e}")
         return False
 
 def print_endpoints_summary(config):
-    """Exibe na tela o sumário de endpoints, contratos e credenciais de teste."""
-    nos = config.get("nos", [])
+    """Displays endpoint, contract, and test account summary on console."""
+    nos = config.get("nodes") or config.get("nos", [])
     c = config.get("contracts", {})
+    nome_rede = config.get("network_name") or config.get("nome_rede", "plugin-testnet")
 
     print("\n" + "="*80)
-    print(f" {BOLD}{GREEN}A REDE BLOCKCHAIN Plugin Permissioning ESTÁ DE PÉ E OPERACIONAL!{RESET}")
+    print(f" {BOLD}{GREEN}THE BLOCKCHAIN NETWORK {nome_rede} IS UP AND RUNNING!{RESET}")
     print("="*80)
 
-    print(f"\n{BOLD}{CYAN}--- ENDPOINTS RPC (Para configurar no POSTMAN/Newman) ---{RESET}")
+    print(f"\n{BOLD}{CYAN}--- RPC ENDPOINTS (Configure in POSTMAN/Newman) ---{RESET}")
     for no in nos:
-        no_name = no.get("nome") or no.get("name")
-        role = (no.get("tipo") or no.get("role", "")).upper()
-        ver = no.get("versao_besu", "latest")
-        plugin_status = f"{GREEN}Ativo{RESET}" if no.get("usar_plugin") else f"{RED}Inativo{RESET}"
+        no_name = no.get("name") or no.get("nome")
+        role = (no.get("role") or no.get("type") or no.get("tipo", "")).upper()
+        ver = no.get("besu_version") or no.get("versao_besu", "latest")
+        use_plugin = no.get("use_plugin") if "use_plugin" in no else no.get("usar_plugin", False)
+        plugin_status = f"{GREEN}Active{RESET}" if use_plugin else f"{RED}Inactive{RESET}"
         ingress = no.get("ingress_address", "N/A")
 
-        rpc_url = f"http://localhost:{no['porta_rpc']}" if "porta_rpc" in no else "N/A"
-        metrics_url = f"http://localhost:{no['porta_metrics']}/metrics" if "porta_metrics" in no else "N/A"
+        rpc_p = no.get("rpc_port") or no.get("porta_rpc")
+        metrics_p = no.get("metrics_port") or no.get("porta_metrics")
+        rpc_url = f"http://localhost:{rpc_p}" if rpc_p else "N/A"
+        metrics_url = f"http://localhost:{metrics_p}/metrics" if metrics_p else "N/A"
 
         print(f"🔹 {BOLD}{no_name}{RESET} [{role} | Besu: {ver} | Plugin: {plugin_status}]")
         print(f"   ↳ {BOLD}RPC URL:{RESET}     {CYAN}{rpc_url}{RESET}")
-        print(f"   ↳ {BOLD}Métricas:{RESET}    {metrics_url}")
-        if no.get("usar_plugin"):
-            print(f"   ↳ {BOLD}Ingress:{RESET}    {ingress}")
+        print(f"   ↳ {BOLD}Metrics:{RESET}     {metrics_url}")
+        if use_plugin:
+            print(f"   ↳ {BOLD}Ingress:{RESET}     {ingress}")
 
-    print(f"\n{BOLD}{CYAN}--- CONTRATOS INTELIGENTES (Pré-deployados no Genesis) ---{RESET}")
+    print(f"\n{BOLD}{CYAN}--- SMART CONTRACTS (Pre-deployed in Genesis) ---{RESET}")
     print(f"📍 {BOLD}Account Ingress:{RESET}    {c.get('account_ingress', 'N/A')}")
     print(f"📍 {BOLD}Node Ingress:{RESET}       {c.get('node_ingress', 'N/A')}")
     print(f"📍 {BOLD}Admin (proxy):{RESET}      {c.get('admin_contract', 'N/A')}")
     print(f"📍 {BOLD}AccountRules (GEN1):{RESET} {c.get('account_rules', 'N/A')}")
     print(f"📍 {BOLD}NodeRules (GEN1):{RESET}    {c.get('node_rules', 'N/A')}")
 
-    print(f"\n{BOLD}{CYAN}--- CHAVES E CONTAS DE TESTE ---{RESET}")
-    print(f"🔑 {BOLD}CONTA PERMITIDA (ADMIN):{RESET}")
-    print(f"   ↳ Endereço: {GREEN}{c.get('admin_addr', 'N/A')}{RESET} (Saldo: 100k ETH)")
-    print(f"   ↳ Chave Privada: {c.get('admin_pk', 'N/A')}")
-    print(f"🔑 {BOLD}CONTA BLOQUEADA (UNAUTH):{RESET}")
-    print(f"   ↳ Endereço: {RED}{c.get('unauth_addr', 'N/A')}{RESET} (Saldo: Financiar via teste)")
-    print(f"   ↳ Chave Privada: {c.get('unauth_pk', 'N/A')}")
+    print(f"\n{BOLD}{CYAN}--- TEST KEYS AND ACCOUNTS ---{RESET}")
+    print(f"🔑 {BOLD}PERMITTED ACCOUNT (ADMIN):{RESET}")
+    print(f"   ↳ Address: {GREEN}{c.get('admin_addr', 'N/A')}{RESET} (Balance: 100k ETH)")
+    print(f"   ↳ Private Key: {c.get('admin_pk', 'N/A')}")
+    print(f"🔑 {BOLD}BLOCKED ACCOUNT (UNAUTH):{RESET}")
+    print(f"   ↳ Address: {RED}{c.get('unauth_addr', 'N/A')}{RESET}")
+    print(f"   ↳ Private Key: {c.get('unauth_pk', 'N/A')}")
 
-    # Status do permissionamento
+    # Permissioning status
     primeiro_no = nos[0] if nos else {}
     ingress = primeiro_no.get("ingress_address", "")
     if ingress == "":
-        perm_status = f"{RED}FAIL-CLOSE — Todas as transações BLOQUEADAS (sem Ingress){RESET}"
+        perm_status = f"{RED}FAIL-CLOSE — All transactions BLOCKED (no Ingress configured){RESET}"
     elif ingress not in [c.get("account_ingress", ""), c.get("node_ingress", "")]:
-        perm_status = f"{RED}FAIL-CLOSE — Ingress inválido/inexistente ({ingress}){RESET}"
+        perm_status = f"{RED}FAIL-CLOSE — Invalid/non-existent Ingress ({ingress}){RESET}"
     else:
-        perm_status = f"{GREEN}ATIVO — Contratos registrados, allowlists em vigor{RESET}"
+        perm_status = f"{GREEN}ACTIVE — Contracts registered, allowlists enforced{RESET}"
 
-    print(f"\n{BOLD}{CYAN}--- STATUS DO PERMISSIONAMENTO ---{RESET}")
+    print(f"\n{BOLD}{CYAN}--- PERMISSIONING STATUS ---{RESET}")
     print(f"🔒 {perm_status}")
 
-    print(f"\n{BOLD}{YELLOW}--- INSTRUÇÕES DE TESTE ---{RESET}")
-    print("1. Importe a coleção Postman em 'test-suite/postman/' para o seu Postman.")
-    print("2. Configure a URL do nó (ex: http://localhost:9005 para rpc-node-1).")
-    print("3. Execute os testes PF-01 (ADMIN aprovada) e PF-02 (UNAUTH rejeitada).")
-    print("4. Monitore os logs de permissionamento:")
-    print(f"   {CYAN}docker logs -f {config.get('nome_rede', 'plugin-testnet')}-rpc-node-1 | grep -E 'Permission check|Sender'{RESET}")
+    print(f"\n{BOLD}{YELLOW}--- TEST INSTRUCTIONS ---{RESET}")
+    print("1. Import the Postman collection in 'test-suite/postman/' into Postman.")
+    print("2. Set the node URL (e.g. http://localhost:9005 for rpc-node-1).")
+    print("3. Run tests PF-01 (ADMIN allowed) and PF-02 (UNAUTH rejected).")
+    print("4. Monitor permissioning logs:")
+    print(f"   {CYAN}docker logs -f {nome_rede}-rpc-node-1 | grep -E 'Permission check|Sender'{RESET}")
     print("="*80 + "\n")
 
 def start_network(compose_path, compose_cmd):
-    """Executa o docker-compose up."""
-    log_info("Subindo contêineres Docker da rede Besu...")
+    """Executes docker-compose up."""
+    log_info("Starting Besu network Docker containers...")
     try:
         cmd = compose_cmd.split() + ["-f", compose_path, "up", "-d"]
         subprocess.run(cmd, check=True)
-        log_success("Contêineres criados e iniciados com sucesso.")
+        log_success("Containers created and started successfully.")
     except Exception as e:
-        log_error(f"Erro ao iniciar a rede Docker: {e}")
+        log_error(f"Error starting Docker network: {e}")
         sys.exit(1)
 
 def stop_network(compose_path, compose_cmd):
-    """Para e remove a rede e os contêineres."""
-    log_info("Parando e removendo contêineres Docker...")
+    """Stops and removes the network and containers."""
+    log_info("Stopping and removing Docker containers...")
     if not os.path.exists(compose_path):
-        log_error(f"Arquivo docker-compose não encontrado em: {compose_path}")
+        log_error(f"docker-compose file not found at: {compose_path}")
         return
 
     try:
         cmd = compose_cmd.split() + ["-f", compose_path, "down", "-v"]
         subprocess.run(cmd, check=True)
-        log_success("Rede parada e volumes de contêineres limpos.")
+        log_success("Network stopped and container volumes cleaned.")
 
         volumes_dir = os.path.join(RUN_DIR, "volumes")
         if os.path.exists(volumes_dir):
             try:
                 shutil.rmtree(volumes_dir)
-                log_info("Diretórios de volumes locais removidos.")
+                log_info("Local volume directories removed.")
             except Exception as e:
-                log_warning(f"Não foi possível remover todos os volumes locais: {e}")
-                log_info("Limpe manualmente: sudo rm -rf test-suite/run-data/volumes")
+                log_warning(f"Could not remove all local volume directories: {e}")
+                log_info("Clean manually: sudo rm -rf test-suite/run-data/volumes")
     except Exception as e:
-        log_error(f"Erro ao parar a rede Docker: {e}")
+        log_error(f"Error stopping Docker network: {e}")
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Orquestrador Dinâmico de Testes Besu + Permissionamento (v2)",
+        description="Dynamic Besu + Permissioning Test Orchestrator (v2)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Exemplos:
+Examples:
   ./run.sh -c configs/scenario-full-network.json -a start
   ./run.sh -c configs/scenario-full-network.json -a start --monitoring
   ./run.sh -c configs/scenario-failclose-no-ingress.json -a start --skip-verify
@@ -676,17 +685,17 @@ Exemplos:
         """
     )
     parser.add_argument("--config", "-c", default="configs/scenario-full-network.json",
-                        help="Caminho do JSON de configuração da rede (default: configs/scenario-full-network.json)")
+                        help="Path to network configuration JSON (default: configs/scenario-full-network.json)")
     parser.add_argument("--action", "-a", choices=["start", "stop", "status"], default="start",
-                        help="Ação a ser realizada na rede (default: start)")
+                        help="Action to perform on network (default: start)")
     parser.add_argument("--skip-verify", action="store_true",
-                        help="Pular verificação de contratos on-chain após startup")
+                        help="Skip on-chain contract verification after startup")
     parser.add_argument("--skip-setup", action="store_true",
-                        help="Pular execução de script de setup pós-genesis")
+                        help="Skip post-genesis setup script execution")
     parser.add_argument("--timeout", type=int, default=120,
-                        help="Timeout em segundos para aguardar blocos (default: 120)")
+                        help="Timeout in seconds to wait for blocks (default: 120)")
     parser.add_argument("--monitoring", "-m", action="store_true",
-                        help="Iniciar stack de monitoramento (Prometheus + Grafana)")
+                        help="Start monitoring stack (Prometheus + Grafana)")
 
     args = parser.parse_args()
 
@@ -698,7 +707,7 @@ Exemplos:
     compose_path = os.path.join(RUN_DIR, "docker-compose.yml")
 
     if args.action == "stop":
-        # Parar monitoramento se existir
+        # Stop monitoring if present
         monitoring_dir = os.path.join(BASE_DIR, "monitoring")
         if os.path.exists(os.path.join(monitoring_dir, "monitoring.sh")):
             subprocess.run([os.path.join(monitoring_dir, "monitoring.sh"), "stop"], 
@@ -712,25 +721,26 @@ Exemplos:
             cmd = compose_cmd.split() + ["-f", compose_path, "ps"]
             subprocess.run(cmd)
         else:
-            log_warning("Nenhuma rede ativa configurada no momento.")
+            log_warning("No active network currently configured.")
         
-        # Mostrar status do monitoramento
+        # Show monitoring status
         monitoring_dir = os.path.join(BASE_DIR, "monitoring")
         if os.path.exists(os.path.join(monitoring_dir, "monitoring.sh")):
-            print(f"\n{BOLD}{CYAN}--- MONITORAMENTO ---{RESET}")
+            print(f"\n{BOLD}{CYAN}--- MONITORING ---{RESET}")
             subprocess.run([os.path.join(monitoring_dir, "monitoring.sh"), "status"])
         
         sys.exit(0)
 
     elif args.action == "start":
         print(f"\n{BOLD}{BLUE}====================================================================={RESET}")
-        print(f"{BOLD}{BLUE}⚙️  INICIANDO PREPARAÇÃO DA REDE: {config.get('nome_rede')} {RESET}")
+        print(f"{BOLD}{BLUE}⚙️  STARTING NETWORK PREPARATION: {config.get('nome_rede') or config.get('network_name')} {RESET}")
         print(f"{BOLD}{BLUE}====================================================================={RESET}\n")
 
         plugin_path = config.get("plugin_jar_path",
-                                 "../../build/libs/onchain-permissioning-plugin.jar")
+                                 "../../build/libs/besu-plugin-permissioning.jar")
 
-        precisa_plugin = any(no.get("usar_plugin", False) for no in config.get("nos", []))
+        nos = config.get("nos", []) or config.get("nodes", [])
+        precisa_plugin = any(no.get("usar_plugin", no.get("use_plugin", False)) for no in nos)
         resolved_plugin_path = None
         if precisa_plugin:
             resolved_plugin_path = build_plugin_if_needed(plugin_path)
@@ -738,60 +748,59 @@ Exemplos:
         setup_files(config)
 
         bootnode_pubkey, bootnode_service = generate_keys_and_get_bootnode(
-            config.get("nos", []), RUN_DIR, compose_cmd
+            nos, RUN_DIR, compose_cmd
         )
 
         compose_file = generate_docker_compose(
             config, resolved_plugin_path, bootnode_pubkey, bootnode_service
         )
 
-        log_success(f"Configuração do Docker Compose gerada em: {compose_file}")
+        log_success(f"Docker Compose configuration generated at: {compose_file}")
 
         start_network(compose_file, compose_cmd)
 
-        # Aguardar rede ficar pronta
+        # Wait for network blocks
         blocks_ok, rpc_url, block = wait_for_blocks(config, timeout=args.timeout)
 
-        # Executar script de setup pós-genesis (deploy contratos, GEN2, etc.)
-        # Roda ANTES da verificação para que contratos deployados existam on-chain
+        # Run post-genesis setup script (deploy contracts, GEN2, etc.)
         setup_ok = True
         if not args.skip_setup and blocks_ok:
             setup_ok = run_setup_script(config, rpc_url)
             if not setup_ok:
-                log_warning("Setup pós-genesis falhou — alguns cenários podem não funcionar.")
+                log_warning("Post-genesis setup failed — some scenarios may not function.")
 
-        # Verificar contratos on-chain (após setup)
+        # Verify on-chain contracts
         contracts_ok = True
         if not args.skip_verify:
             contracts_ok = verify_contracts(rpc_url, config.get("contracts", {}), config)
 
-        # Capturar logs Docker
+        # Capture Docker logs
         run_tag = datetime.now().strftime("%Y%m%d-%H%M%S")
         log_dir = capture_logs(config, run_tag=run_tag)
 
-        # Iniciar monitoramento se solicitado
+        # Start monitoring if requested
         if args.monitoring:
             monitoring_dir = os.path.join(BASE_DIR, "monitoring")
             if os.path.exists(os.path.join(monitoring_dir, "monitoring.sh")):
-                print(f"\n{BOLD}{BLUE}--- INICIANDO MONITORAMENTO ---{RESET}")
+                print(f"\n{BOLD}{BLUE}--- STARTING MONITORING ---{RESET}")
                 subprocess.run([os.path.join(monitoring_dir, "monitoring.sh"), "start"])
                 print(f"{CYAN}   Grafana:{RESET}    http://localhost:3000 (admin/admin)")
                 print(f"{CYAN}   Prometheus:{RESET} http://localhost:9090")
             else:
-                log_warning("Script monitoring/monitoring.sh não encontrado.")
+                log_warning("Script monitoring/monitoring.sh not found.")
 
         print_endpoints_summary(config)
 
-        # Resumo final
-        print(f"{BOLD}{CYAN}--- LOGS DA EXECUÇÃO ---{RESET}")
+        # Final summary
+        print(f"{BOLD}{CYAN}--- EXECUTION LOGS ---{RESET}")
         print(f"📁 {log_dir}")
         if blocks_ok:
             if contracts_ok:
-                log_success("Rede pronta para testes de permissionamento!")
+                log_success("Network ready for permissioning tests!")
             else:
-                log_warning("Rede iniciada mas verificação de contratos encontrou problemas.")
+                log_warning("Network started but contract verification encountered issues.")
         else:
-            log_warning("Rede iniciada sem blocos (possível cenário fail-close).")
+            log_warning("Network started without blocks (possible fail-close scenario).")
 
 if __name__ == "__main__":
     main()
