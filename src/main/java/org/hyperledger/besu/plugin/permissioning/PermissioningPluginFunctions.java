@@ -21,7 +21,7 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
-import org.hyperledger.besu.crypto.Hash;
+import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Quantity;
 import org.hyperledger.besu.datatypes.Transaction;
@@ -73,7 +73,12 @@ public class PermissioningPluginFunctions {
    * @return 4-byte selector
    */
   public static Bytes hashSignature(final String signature) {
-    return Hash.keccak256(Bytes.of(signature.getBytes(UTF_8))).slice(0, 4);
+    byte[] input = signature.getBytes(UTF_8);
+    KeccakDigest digest = new KeccakDigest(256);
+    digest.update(input, 0, input.length);
+    byte[] out = new byte[32];
+    digest.doFinal(out, 0);
+    return Bytes.wrap(out).slice(0, 4);
   }
 
   /**
