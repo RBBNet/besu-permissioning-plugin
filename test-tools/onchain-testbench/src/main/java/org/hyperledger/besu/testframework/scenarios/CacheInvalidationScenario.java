@@ -15,11 +15,11 @@ import java.util.List;
  *
  * <h3>Fluxo do teste:</h3>
  * <ol>
- *   <li>Governance contracts deployed; validators cache Rules contract address</li>
- *   <li>Revoke account authorization via governance transaction</li>
- *   <li>Aguardar 1 bloco (TTL do cache)</li>
- *   <li>Send transaction from revoked account</li>
- *   <li>Verify: transaction is DENIED (cache was invalidated)</li>
+ * <li>Governance contracts deployed; validators cache Rules contract address</li>
+ * <li>Revoke account authorization via governance transaction</li>
+ * <li>Aguardar 1 bloco (TTL do cache)</li>
+ * <li>Send transaction from revoked account</li>
+ * <li>Verify: transaction is DENIED (cache was invalidated)</li>
  * </ol>
  */
 public class CacheInvalidationScenario {
@@ -168,7 +168,7 @@ public class CacheInvalidationScenario {
 
         // Conclusion
         report.conclusion(
-            "✅ 1-block cache operates as specified: maximum window between a " +
+            " 1-block cache operates as specified: maximum window between a " +
             "governance revocation and effective blocking is 1 block (~4 seconds). " +
             "The plugin correctly implements invalidation via AtomicReference with TTL " +
             "based on block number."

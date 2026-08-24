@@ -114,23 +114,23 @@ test-tools/caliper/
 
 | Componente | Status | Notas |
 |:---|:---:|:---|
-| Caliper CLI 0.6.0 | ✅ | Instalado globalmente. Deprecation warnings mas funcional |
-| Caliper bind (besu) | ✅ | `caliper bind --caliper-bind-sut besu:latest` OK |
-| network-plugin-on.json | ✅ | RPC :9005 (plugin ativo) |
-| network-plugin-off.json | ✅ | RPC :9006 (sem plugin) |
-| transfer-constant.js | ✅ | 4 workers, 20 contas, valor 1 wei |
-| transfer-ramp.js | ✅ | Linear rate 10→500 TPS |
-| permissionCheck.js | ✅ | Selector `0x936421d5` (transactionAllowed) |
-| mixed-workload.js | ✅ | 80/20 transfer/contract |
-| benchmark-comparativo.yaml | ✅ | 4 rounds: 50/100/200 TPS + ramp |
-| benchmark-carga.yaml | ✅ | 18000 tx, 100 TPS |
-| benchmark-duracao.yaml | ✅ | 180000 tx, 100 TPS, 30min |
-| benchmark-cache.yaml | ✅ | 4 rounds: 1/10/100/1000 contas |
-| Dockerfile.caliper | ✅ | node:18-slim + caliper-cli |
-| docker-compose.caliper.yml | ✅ | network_mode: host |
-| caliper-manager.sh | ✅ | Orquestrador com suites: full, compare, cache, carga, duracao |
-| SimpleStorage.sol | ✅ | Contrato benchmark |
-| reports/.gitignore | ❌ | Pendente |
+| Caliper CLI 0.6.0 |  | Instalado globalmente. Deprecation warnings mas funcional |
+| Caliper bind (besu) |  | `caliper bind --caliper-bind-sut besu:latest` OK |
+| network-plugin-on.json |  | RPC :9005 (plugin ativo) |
+| network-plugin-off.json |  | RPC :9006 (sem plugin) |
+| transfer-constant.js |  | 4 workers, 20 contas, valor 1 wei |
+| transfer-ramp.js |  | Linear rate 10→500 TPS |
+| permissionCheck.js |  | Selector `0x936421d5` (transactionAllowed) |
+| mixed-workload.js |  | 80/20 transfer/contract |
+| benchmark-comparativo.yaml |  | 4 rounds: 50/100/200 TPS + ramp |
+| benchmark-carga.yaml |  | 18000 tx, 100 TPS |
+| benchmark-duracao.yaml |  | 180000 tx, 100 TPS, 30min |
+| benchmark-cache.yaml |  | 4 rounds: 1/10/100/1000 contas |
+| Dockerfile.caliper |  | node:18-slim + caliper-cli |
+| docker-compose.caliper.yml |  | network_mode: host |
+| caliper-manager.sh |  | Orquestrador com suites: full, compare, cache, carga, duracao |
+| SimpleStorage.sol |  | Contrato benchmark |
+| reports/.gitignore |  | Pendente |
 
 ---
 
@@ -532,11 +532,11 @@ Estimated values for evaluation baseline (base: Besu 25.12.0, QBFT, 5 validators
 
 | Component | Version | Status |
 |:---|:---|:---|
-| Node.js | ≥ 18 | v22.13.0 ✅ |
-| npm | ≥ 9 | 10.9.2 ✅ |
-| Docker | ≥ 20 | 28.1.1 ✅ |
-| Besu images | 25.12.0, 26.5.0 | ✅ |
-| Caliper CLI | 0.6.0 | Instalado ✅ |
+| Node.js | ≥ 18 | v22.13.0  |
+| npm | ≥ 9 | 10.9.2  |
+| Docker | ≥ 20 | 28.1.1  |
+| Besu images | 25.12.0, 26.5.0 |  |
+| Caliper CLI | 0.6.0 | Instalado  |
 
 ### 11.2 Installation (pre-installed in this environment)
 

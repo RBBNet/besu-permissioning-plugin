@@ -219,8 +219,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "============================================"
-echo "  Hyperledger Caliper — Permissioning Benchmark"
-echo "  $(date)"
+echo "Hyperledger Caliper — Permissioning Benchmark"
+echo "$(date)"
 echo "============================================"
 echo ""
 

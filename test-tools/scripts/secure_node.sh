@@ -45,4 +45,4 @@ docker run -d --name ${PROJECT,,}_${NODE_NAME}_1 \
   --bootnodes=enode://${BOOT_PUB}@${BOOT_IP}:30303 \
   --metrics-enabled=true --metrics-host=0.0.0.0 > /dev/null 2>&1
 
-echo "✅ SUCCESS: Node $NODE_NAME is now protected by Permissioning Plugin."
+echo "SUCCESS: Node $NODE_NAME is now protected by Permissioning Plugin."

@@ -22,12 +22,12 @@ import java.util.concurrent.TimeUnit;
  *
  * <h3>Test Flow</h3>
  * <ol>
- *   <li>Capture baseline resource usage (CPU, memory) of all containers</li>
- *   <li>Dispatch a burst of N transactions through the RPC node</li>
- *   <li>Measure post-burst resource usage</li>
- *   <li>Verify: memory doesn't grow monotonically (no leak)</li>
- *   <li>Verify: cache hits reduce simulation calls (plugin efficiency)</li>
- *   <li>Generate comparative table</li>
+ * <li>Capture baseline resource usage (CPU, memory) of all containers</li>
+ * <li>Dispatch a burst of N transactions through the RPC node</li>
+ * <li>Measure post-burst resource usage</li>
+ * <li>Verify: memory doesn't grow monotonically (no leak)</li>
+ * <li>Verify: cache hits reduce simulation calls (plugin efficiency)</li>
+ * <li>Generate comparative table</li>
  * </ol>
  */
 public class ResourceOptimizationScenario {
@@ -179,13 +179,13 @@ public class ResourceOptimizationScenario {
             String status;
 
             if (delta < 0) {
-                status = "✅ Reduziu";
+                status = " Reduziu";
             } else if (delta < 10 * 1024 * 1024) { // < 10 MB
-                status = "✅ Stable";
+                status = " Stable";
             } else if (delta < MAX_MEMORY_GROWTH_BYTES) {
-                status = "⚠️ Cresceu " + formatBytes(delta);
+                status = " Cresceu " + formatBytes(delta);
             } else {
-                status = "❌ Vazamento!";
+                status = " Vazamento!";
                 memoryStable = false;
             }
 
@@ -212,14 +212,14 @@ public class ResourceOptimizationScenario {
 
         if (memoryStable) {
             report.observation(
-                "✅ Memory stable after burst of " + TX_BURST_COUNT + " transactions. " +
+                " Memory stable after burst of " + TX_BURST_COUNT + " transactions. " +
                 "Crescimento total: " + formatBytes(totalDelta) + ". " +
                 "No indication of memory leak detected."
             );
             report.stepPassed();
         } else {
             report.stepFailed(
-                "❌ Abnormal memory growth detected in " + maxGrowthContainer +
+                " Abnormal memory growth detected in " + maxGrowthContainer +
                 " (" + formatBytes(maxGrowth) + "). Potential memory leak."
             );
         }
@@ -269,12 +269,12 @@ public class ResourceOptimizationScenario {
         boolean scenarioPassed = memoryStable;
         report.conclusion(
             scenarioPassed
-                ? "✅ Acceptance Criterion #2 SATISFIED: Resources stable after burst of " +
+                ? " Acceptance Criterion #2 SATISFIED: Resources stable after burst of " +
                   TX_BURST_COUNT + " transactions. Total memory: " +
                   formatBytes(totalBaselineMem) + " → " + formatBytes(totalPostMem) +
                   " (Δ=" + formatBytes(totalDelta) + "). " +
                   "1-block caching maintains efficiency, preventing redundant Ingress queries."
-                : "❌ Resource instability detected. Inspect container " + maxGrowthContainer +
+                : " Resource instability detected. Inspect container " + maxGrowthContainer +
                   " (memory growth: " + formatBytes(maxGrowth) + ")."
         );
 

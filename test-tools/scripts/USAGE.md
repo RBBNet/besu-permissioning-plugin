@@ -1,4 +1,4 @@
-# ⚙️ Infrastructure Orchestration & Operation Guide
+# Infrastructure Orchestration & Operation Guide
 
 This directory consolidates the suite of automation tools and scripts designed to manage the lifecycle, governance, and observability of Hyperledger Besu permissioned networks in simulation and test environments.
 
@@ -6,7 +6,7 @@ These tools follow Platform Engineering (DevOps/SecOps) best practices to automa
 
 ---
 
-## 🗂️ Tool Reference by Domain
+## Tool Reference by Domain
 
 ### 1. Unified Lifecycle Management (Nodes)
 
@@ -70,7 +70,7 @@ These tools follow Platform Engineering (DevOps/SecOps) best practices to automa
 
 ---
 
-## 🔒 Security Best Practices
+## Security Best Practices
 
 1. **Environment Variables:** Always configure ingress addresses via environment variables (`BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS` and `BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS`).
 2. **Fail-Close Safeguards:** If ingress environment variables are missing or invalid, the plugin operates in strict fail-close mode to prevent unauthorized access.

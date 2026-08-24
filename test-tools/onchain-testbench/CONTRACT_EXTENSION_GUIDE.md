@@ -23,17 +23,17 @@ The framework provides three main extension points for integrating new smart con
 ┌──────────────────────────────────────────────────────┐
 │                  NEW SMART CONTRACT                  │
 │                                                      │
-│  ❶ PermissioningStrategy    → deploy & interaction   │
-│  ❷ Genesis (pre-deploy)     → fixed genesis address  │
-│  ❸ Scenario                → test scenario           │
+│   PermissioningStrategy    → deploy & interaction   │
+│   Genesis (pre-deploy)     → fixed genesis address  │
+│   Scenario                → test scenario           │
 └──────────────────────────────────────────────────────┘
 ```
 
 | Extension Point | Action Required | Usage Scenario |
 | :--- | :--- | :--- |
-| **❶ Strategy** | Implement new class for `PermissioningStrategy` | Custom deployment & governance logic |
-| **❷ Genesis** | Add address & bytecode to `genesis.json` | Contract must be available at block 0 |
-| **❸ Scenario** | Create new class under `scenarios/` | Custom contract test scenario |
+| ** Strategy** | Implement new class for `PermissioningStrategy` | Custom deployment & governance logic |
+| ** Genesis** | Add address & bytecode to `genesis.json` | Contract must be available at block 0 |
+| ** Scenario** | Create new class under `scenarios/` | Custom contract test scenario |
 
 ---
 

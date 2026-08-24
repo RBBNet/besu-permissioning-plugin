@@ -96,7 +96,7 @@ def keccak256_hash(data: bytes) -> bytes:
             k.update(data)
             return k.digest()
         except ImportError:
-            sys.exit("❌ Error: Install dependencies via: pip3 install pycryptodome or eth-utils")
+            sys.exit(" Error: Install dependencies via: pip3 install pycryptodome or eth-utils")
 
 
 def sign_hash_secp256k1(msg_hash: bytes, private_key_bytes: bytes) -> Tuple[int, bytes, bytes]:
@@ -108,7 +108,7 @@ def sign_hash_secp256k1(msg_hash: bytes, private_key_bytes: bytes) -> Tuple[int,
         v_rec = sig[64]
         return v_rec, r, s
     else:
-        sys.exit("❌ Error: Install coincurve via: pip3 install coincurve")
+        sys.exit(" Error: Install coincurve via: pip3 install coincurve")
 
 
 def build_signed_transaction(
@@ -166,7 +166,7 @@ def rpc_call(url: str, method: str, params: list):
             raise RuntimeError(f"RPC Error: {res['error']}")
         return res["result"]
     except requests.exceptions.RequestException as e:
-        sys.exit(f"❌ Failed connecting to node RPC ({url}): {e}")
+        sys.exit(f" Failed connecting to node RPC ({url}): {e}")
 
 
 def fetch_chain_id(url: str) -> int:

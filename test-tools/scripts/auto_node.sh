@@ -17,12 +17,12 @@ fi
 DOCKER_NET="${PROJECT,,}_default"
 
 if [ ! -f "$PROJECT/.env.configs/genesis.json" ]; then
-    echo "❌ FATAL ERROR: Project not found or invalid directory structure."
+    echo "FATAL ERROR: Project not found or invalid directory structure."
     exit 1
 fi
 
 echo "====================================================="
-echo "🚀 AUTOMATED NODE PROVISIONING: $NEW_NODE"
+echo "AUTOMATED NODE PROVISIONING: $NEW_NODE"
 echo "====================================================="
 
 echo "1. Creating directories and generating local node key..."
@@ -48,7 +48,7 @@ JS_FILE="scripts/accept_node.js"
 cd "$HARDHAT_DIR" || exit
 
 if [ ! -f "$JS_FILE" ]; then
-    echo "   [!] accept_node.js script not found. Generating template script..."
+    echo "[!] accept_node.js script not found. Generating template script..."
     mkdir -p scripts
     cat << 'EOF' > $JS_FILE
 const { ethers } = require("hardhat");
@@ -73,7 +73,7 @@ async function main() {
     const tx = await nodeRulesContract.addLocalNode(enodeHigh, enodeLow, nodeType, nodeName, { gasPrice: 0 });
     const receipt = await tx.wait();
     
-    if (receipt.status === 1) console.log("   ✅ SUCCESS: Node authorized on-chain.");
+    if (receipt.status === 1) console.log("    SUCCESS: Node authorized on-chain.");
     else throw new Error("EVM transaction execution failed.");
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
@@ -92,7 +92,7 @@ HARDHAT_STATUS=$?
 cd "$CURRENT_DIR" || exit
 
 if [ $HARDHAT_STATUS -ne 0 ]; then
-    echo "❌ ERROR: Hardhat authorization failed. Node creation aborted."
+    echo "ERROR: Hardhat authorization failed. Node creation aborted."
     exit 1
 fi
 
@@ -118,7 +118,7 @@ docker run -d --name ${PROJECT,,}_${NEW_NODE}_1 \
   --bootnodes=enode://${BOOT_PUB}@${BOOT_IP}:30303 \
   --metrics-enabled=true --metrics-host=0.0.0.0 > /dev/null 2>&1
 
-echo "⏳ Waiting 15 seconds for initial block header sync..."
+echo "Waiting 15 seconds for initial block header sync..."
 sleep 15
 
 echo "5. Restarting node with Permissioning Plugin active..."
@@ -148,7 +148,7 @@ docker run -d --name ${PROJECT,,}_${NEW_NODE}_1 \
   --metrics-enabled=true --metrics-host=0.0.0.0 > /dev/null 2>&1
 
 echo "====================================================="
-echo "✅ NODE PROVISIONING SUCCESSFUL!"
+echo "NODE PROVISIONING SUCCESSFUL!"
 echo "Node $NEW_NODE is running on RPC port $RPC_PORT."
 echo "Authorized on-chain and protected by Permissioning Plugin."
 echo "====================================================="

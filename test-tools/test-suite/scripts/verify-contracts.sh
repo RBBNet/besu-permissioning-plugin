@@ -4,8 +4,8 @@
 # ============================================================================
 # Usage: ./verify-contracts.sh [RPC_URL]
 # Environment variables:
-#   ACCOUNT_INGRESS, NODE_INGRESS, ADMIN_CONTRACT, ACCOUNT_RULES, NODE_RULES
-#   ADMIN_ADDR (to check allowlist)
+# ACCOUNT_INGRESS, NODE_INGRESS, ADMIN_CONTRACT, ACCOUNT_RULES, NODE_RULES
+# ADMIN_ADDR (to check allowlist)
 # ============================================================================
 set -e
 
@@ -28,7 +28,7 @@ BLOCK=$(curl -s -X POST -H 'Content-Type: application/json' \
 echo "Current block: $BLOCK"
 
 if [ "$BLOCK" = "0x0" ]; then
-    echo "⚠ Network producing no blocks — checks may fail (fail-close?)."
+    echo "Network producing no blocks — checks may fail (fail-close?)."
 fi
 
 echo ""
@@ -39,9 +39,9 @@ check_code() {
         --data "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$ADDR\",\"latest\"],\"id\":1}" \
         "$RPC_URL" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('result','')))")
     if [ "${CODE:-0}" -gt 4 ]; then
-        echo "  ✓ $LABEL ($ADDR) — $CODE chars"
+        echo "$LABEL ($ADDR) — $CODE chars"
     else
-        echo "  ✗ $LABEL ($ADDR) — NOT FOUND"
+        echo "$LABEL ($ADDR) — NOT FOUND"
     fi
 }
 
@@ -60,9 +60,9 @@ check_registry() {
     local INGRESS="$1" KEY="$2" LABEL="$3"
     local VAL=$(cast call --rpc-url "$RPC_URL" "$INGRESS" "getContractAddress(bytes32)(address)" "$KEY" 2>/dev/null || echo "ERROR")
     if [ "$VAL" != "0x0000000000000000000000000000000000000000" ] && [ "$VAL" != "ERROR" ]; then
-        echo "  ✓ $LABEL → $VAL"
+        echo "$LABEL → $VAL"
     else
-        echo "  ⚠ $LABEL → NOT REGISTERED ($VAL)"
+        echo "$LABEL → NOT REGISTERED ($VAL)"
     fi
 }
 
@@ -75,11 +75,11 @@ echo ""
 echo "--- Allowlist ---"
 PERMITTED=$(cast call --rpc-url "$RPC_URL" "$ACCOUNT_RULES" "accountPermitted(address)(bool)" "$ADMIN_ADDR" 2>/dev/null || echo "ERROR")
 if [ "$PERMITTED" = "true" ]; then
-    echo "  ✓ Admin ($ADMIN_ADDR) PERMITTED in AccountRules"
+    echo "Admin ($ADMIN_ADDR) PERMITTED in AccountRules"
 elif [ "$PERMITTED" = "false" ]; then
-    echo "  ⚠ Admin ($ADMIN_ADDR) NOT permitted in AccountRules"
+    echo "Admin ($ADMIN_ADDR) NOT permitted in AccountRules"
 else
-    echo "  ✗ Error querying allowlist: $PERMITTED"
+    echo "Error querying allowlist: $PERMITTED"
 fi
 
 echo ""

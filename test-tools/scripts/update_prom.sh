@@ -12,7 +12,7 @@ fi
 NODE_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${PROJECT,,}_${NEW_NODE}_1)
 
 if [ -z "$NODE_IP" ]; then
-    echo "❌ ERROR: Node container ${PROJECT,,}_${NEW_NODE}_1 is not running."
+    echo "ERROR: Node container ${PROJECT,,}_${NEW_NODE}_1 is not running."
     exit 1
 fi
 
@@ -20,7 +20,7 @@ PROM_CONFIG="$PROJECT/.env.configs/prometheus.yml"
 TARGET_STRING="'$NODE_IP:9545'"
 
 if grep -q "$TARGET_STRING" "$PROM_CONFIG"; then
-    echo "⚠️ Node $NEW_NODE ($NODE_IP) is already monitored in Prometheus."
+    echo "Node $NEW_NODE ($NODE_IP) is already monitored in Prometheus."
     exit 0
 fi
 
@@ -38,4 +38,4 @@ awk -v ip="$NODE_IP" '
 echo "2. Restarting Prometheus monitoring container..."
 docker restart ${PROJECT,,}_prometheus_1 > /dev/null 2>&1
 
-echo "✅ Node $NEW_NODE ($NODE_IP:9545) added to Prometheus monitoring."
+echo "Node $NEW_NODE ($NODE_IP:9545) added to Prometheus monitoring."

@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * Requires: Docker + permissioning-plugin.jar in ./plugins/
  * Run:
- *   ./gradlew test --tests "*PermissioningLogEvidenceTest" -Dperm.genesis.path=./genesis.json
+ * ./gradlew test --tests "*PermissioningLogEvidenceTest" -Dperm.genesis.path=./genesis.json
  */
 @Tag("integration")
 @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "runIntegration", matches = "true")
@@ -138,7 +138,7 @@ class PermissioningLogEvidenceTest {
             .as("Authorized tx MUST be accepted by plugin")
             .isFalse();
 
-        LOG.info("✅ SCENARIO 1 PASSED: Authorized tx accepted.");
+        LOG.info(" SCENARIO 1 PASSED: Authorized tx accepted.");
     }
 
     @Test
@@ -193,14 +193,14 @@ class PermissioningLogEvidenceTest {
         if (response.hasError()) {
             int code = response.getError().getCode();
             String msg = response.getError().getMessage();
-            LOG.info("🔴 PLUGIN BLOCK: code={}, message='{}'", code, msg);
+            LOG.info(" PLUGIN BLOCK: code={}, message='{}'", code, msg);
             assertThat(code == -32007
                        || msg.toLowerCase().contains("not authorized")
                        || msg.toLowerCase().contains("not permitted")
                        || msg.toLowerCase().contains("sender account"))
                 .as("Error must be authorization-related")
                 .isTrue();
-            LOG.info("✅ SCENARIO 2 PASSED: Plugin blocked unauthorized tx.");
+            LOG.info(" SCENARIO 2 PASSED: Plugin blocked unauthorized tx.");
         } else {
             // Tx accepted to pool — check if reverted during mining
             LOG.info("Tx in pool — checking receipt after mining...");
@@ -211,7 +211,7 @@ class PermissioningLogEvidenceTest {
                 String status = receipt.getResult().getStatus();
                 LOG.info("Receipt status: {} (0x1=success, 0x0=reverted)", status);
                 assertThat(status).as("Unauthorized tx must be reverted").isEqualTo("0x0");
-                LOG.info("✅ SCENARIO 2 PASSED: Unauthorized tx REVERTED by plugin.");
+                LOG.info(" SCENARIO 2 PASSED: Unauthorized tx REVERTED by plugin.");
             } else {
                 LOG.warn("No receipt — tx effectively blocked/stuck in pool.");
             }

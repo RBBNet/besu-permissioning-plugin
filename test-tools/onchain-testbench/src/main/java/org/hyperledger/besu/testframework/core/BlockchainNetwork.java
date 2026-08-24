@@ -17,11 +17,11 @@ import java.util.List;
  *
  * <pre>{@code
  * BlockchainNetwork network = BlockchainNetwork.builder()
- *     .withTopology(ConsensusTopology.QBFT)
- *     .withValidators(4)
- *     .withRpcNodes(1)
- *     .withGenesis(Paths.get("genesis.json"))
- *     .build();
+ * .withTopology(ConsensusTopology.QBFT)
+ * .withValidators(4)
+ * .withRpcNodes(1)
+ * .withGenesis(Paths.get("genesis.json"))
+ * .build();
  *
  * network.start();
  * network.deployGovernance(PermissioningStrategy.gen02());
@@ -30,8 +30,8 @@ import java.util.List;
  * unauthorized.connectTo(network.getValidator(0));
  *
  * PermissioningAssertions.assertThat(unauthorized)
- *     .isNotConnectedTo(network.getValidator(0))
- *     .hasLogMatch("PermissioningPlugin: P2P connection DENIED");
+ * .isNotConnectedTo(network.getValidator(0))
+ * .hasLogMatch("PermissioningPlugin: P2P connection DENIED");
  * }</pre>
  */
 public class BlockchainNetwork implements AutoCloseable {

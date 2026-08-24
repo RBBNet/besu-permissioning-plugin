@@ -90,7 +90,7 @@ async def get_nonce(session: aiohttp.ClientSession, rpc_url: str, account: str) 
 async def generate_all_transactions(rpc_url: str, account: str, 
                                     total_txs: int) -> List[str]:
     """Generates all transactions serially (no concurrency)."""
-    print(f"\n📝 PHASE 1: Generating {total_txs} transactions...")
+    print(f"\n PHASE 1: Generating {total_txs} transactions...")
     start = time.time()
     
     async with aiohttp.ClientSession() as session:
@@ -104,10 +104,10 @@ async def generate_all_transactions(rpc_url: str, account: str,
         if raw_tx:
             transactions.append(raw_tx)
         else:
-            print(f"   ⚠️  Error generating tx nonce={nonce + i}")
+            print(f"     Error generating tx nonce={nonce + i}")
     
     elapsed = time.time() - start
-    print(f"   ✅ Generated: {len(transactions)}/{total_txs} ({elapsed:.1f}s)")
+    print(f"    Generated: {len(transactions)}/{total_txs} ({elapsed:.1f}s)")
     return transactions
 
 async def send_single_transaction(session: aiohttp.ClientSession, url: str,
@@ -170,7 +170,7 @@ async def send_all_transactions(rpc_urls: List[str], transactions: List[str],
                                  concurrency: int, no_cache: bool = False) -> StressResult:
     """Sends all transactions concurrently."""
     cache_msg = " (NO CACHE)" if no_cache else ""
-    print(f"\n🚀 PHASE 2: Sending {len(transactions)} transactions{cache_msg} (concurrency={concurrency})...")
+    print(f"\n PHASE 2: Sending {len(transactions)} transactions{cache_msg} (concurrency={concurrency})...")
     start = time.time()
     
     result = StressResult()
@@ -194,7 +194,7 @@ async def run_benchmark(rpc_urls: List[str], account: str,
     """Executes complete benchmark: generation + sending."""
     cache_msg = " [NO CACHE]" if no_cache else ""
     print(f"\n{'='*60}")
-    print(f"🔥 BENCHMARK: {label}{cache_msg}")
+    print(f" BENCHMARK: {label}{cache_msg}")
     print(f"   Total: {total_txs} | Concurrency: {concurrency}")
     print(f"   Nodes: {len(rpc_urls)} ({', '.join(rpc_urls)})")
     print(f"{'='*60}")
@@ -207,7 +207,7 @@ async def run_benchmark(rpc_urls: List[str], account: str,
     gen_time = time.time() - gen_start
     
     if not transactions:
-        print("❌ No transactions generated")
+        print(" No transactions generated")
         return BenchmarkResult()
     
     # Phase 2: Send transactions concurrently
@@ -221,16 +221,16 @@ async def run_benchmark(rpc_urls: List[str], account: str,
     avg_duration = sum(result.durations) / len(result.durations) if result.durations else 0
     tx_per_sec = result.total / send_time if send_time > 0 else 0
     
-    print(f"\n📊 RESULTS ({total_time:.1f}s total):")
-    print(f"   ⏱️  Generation: {gen_time:.1f}s ({gen_time/total_time*100:.0f}%)")
-    print(f"   ⏱️  Sending:    {send_time:.1f}s ({send_time/total_time*100:.0f}%)")
+    print(f"\n RESULTS ({total_time:.1f}s total):")
+    print(f"     Generation: {gen_time:.1f}s ({gen_time/total_time*100:.0f}%)")
+    print(f"     Sending:    {send_time:.1f}s ({send_time/total_time*100:.0f}%)")
     print(f"   ─────────────────────────────────")
-    print(f"   ✅ Permitted:  {result.permitted}")
-    print(f"   ❌ Denied:     {result.denied}")
-    print(f"   ⚠️  Errors:     {result.errors}")
+    print(f"    Permitted:  {result.permitted}")
+    print(f"    Denied:     {result.denied}")
+    print(f"     Errors:     {result.errors}")
     print(f"   ─────────────────────────────────")
-    print(f"   ⏱️  Average latency: {avg_duration*1000:.0f}ms per tx")
-    print(f"   🚀 Observed throughput: {tx_per_sec:.1f} tx/s")
+    print(f"     Average latency: {avg_duration*1000:.0f}ms per tx")
+    print(f"    Observed throughput: {tx_per_sec:.1f} tx/s")
     
     return BenchmarkResult(
         generate_time=gen_time,
@@ -260,7 +260,7 @@ async def main():
     args = parser.parse_args()
     
     # Check connection
-    print("🔍 Checking RPC node connection...")
+    print(" Checking RPC node connection...")
     await asyncio.sleep(1)  # Wait for system stabilization
     try:
         async with aiohttp.ClientSession() as session:
@@ -269,9 +269,9 @@ async def main():
             }, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 data = await resp.json()
                 block = int(data.get("result", "0x0"), 16)
-                print(f"   ✅ Connected. Current block: {block}")
+                print(f"    Connected. Current block: {block}")
     except Exception as e:
-        print(f"   ❌ Connection error: {e}")
+        print(f"    Connection error: {e}")
         sys.exit(1)
     
     # Executar benchmark

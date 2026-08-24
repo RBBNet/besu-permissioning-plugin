@@ -44,11 +44,11 @@ Run folders sequentially:
 
 | Step | Folder | Target Validation |
 | :--- | :--- | :--- |
-| 1 | ⚙️ **0. Setup** | RPC connectivity & chain status |
-| 2 | 🔐 **1. Account Permissioning** | Verifies ADMIN is permitted and UNAUTH is blocked |
-| 3 | 🌐 **2. Node Permissioning** | Verifies node rule queries |
-| 4 | 📋 **3. Contract Verification** | Verifies genesis contract bytecodes |
-| 5 | 💥 **4. Chaos & Fail-Close** | Verifies fail-close behavior |
+| 1 |  **0. Setup** | RPC connectivity & chain status |
+| 2 |  **1. Account Permissioning** | Verifies ADMIN is permitted and UNAUTH is blocked |
+| 3 |  **2. Node Permissioning** | Verifies node rule queries |
+| 4 |  **3. Contract Verification** | Verifies genesis contract bytecodes |
+| 5 |  **4. Chaos & Fail-Close** | Verifies fail-close behavior |
 
 ## Step 5: Stop Network
 

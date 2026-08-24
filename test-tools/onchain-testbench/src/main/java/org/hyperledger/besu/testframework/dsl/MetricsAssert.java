@@ -11,8 +11,8 @@ import java.time.Duration;
  *
  * <pre>{@code
  * MetricsAssert.assertThat(validator)
- *     .counter("onchain_transaction_check_count_permitted").hasValueGreaterThan(0)
- *     .counter("onchain_transaction_check_count_denied").hasValue(0);
+ * .counter("onchain_transaction_check_count_permitted").hasValueGreaterThan(0)
+ * .counter("onchain_transaction_check_count_denied").hasValue(0);
  * }</pre>
  */
 public class MetricsAssert extends AbstractAssert<MetricsAssert, BesuNode> {

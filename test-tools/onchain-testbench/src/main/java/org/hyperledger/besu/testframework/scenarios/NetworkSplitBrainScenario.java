@@ -170,7 +170,7 @@ public class NetworkSplitBrainScenario {
 
         // Conclusion
         report.conclusion(
-            "✅ Network partition scenario validated: (1) Consensus halts when quorum " +
+            " Network partition scenario validated: (1) Consensus halts when quorum " +
             "is lost, (2) Plugin maintains local security during partition, " +
             "(3) Network automatically recovers when partition is healed. " +
             "This test demonstrates the importance of correctly sizing validator " +

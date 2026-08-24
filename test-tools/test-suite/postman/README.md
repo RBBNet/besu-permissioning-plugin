@@ -1,8 +1,8 @@
-# 📮 Postman & Newman API Testing Guide
+# Postman & Newman API Testing Guide
 
 Postman collection and utilities for validating on-chain permissioning rules against a live Hyperledger Besu network.
 
-## 🚀 Execution Workflow
+## Execution Workflow
 
 ### 1. Boot Network Scenario
 
@@ -38,15 +38,15 @@ python3 gen-signed-tx.py --account unauth
 
 | Order | Folder | Description |
 | :--- | :--- | :--- |
-| 1 | ⚙️ **0. Setup** | Validates RPC connectivity, chainId, block height, and account nonces |
-| 2 | 🔐 **1. Account Permissioning** | Validates PF-01 (admin accepted) and PF-02 (unauth denied) |
-| 3 | 🌐 **2. Node Permissioning** | Queries NodeRules contract status |
-| 4 | 📋 **3. Contract Verification** | Verifies bytecode for pre-deployed contracts |
-| 5 | 💥 **4. Chaos & Fail-Close** | Tests fail-close scenarios |
+| 1 |  **0. Setup** | Validates RPC connectivity, chainId, block height, and account nonces |
+| 2 |  **1. Account Permissioning** | Validates PF-01 (admin accepted) and PF-02 (unauth denied) |
+| 3 |  **2. Node Permissioning** | Queries NodeRules contract status |
+| 4 |  **3. Contract Verification** | Verifies bytecode for pre-deployed contracts |
+| 5 |  **4. Chaos & Fail-Close** | Tests fail-close scenarios |
 
 ---
 
-## 🤖 Automated CLI Execution via Newman
+## Automated CLI Execution via Newman
 
 ```bash
 npm install -g newman

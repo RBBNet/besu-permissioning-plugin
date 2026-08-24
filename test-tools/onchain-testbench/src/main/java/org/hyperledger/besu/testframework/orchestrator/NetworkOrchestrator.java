@@ -25,9 +25,9 @@ import java.util.List;
  * Peer-discovery strategy:
  * - Enode IDs are pre-computed from deterministic Hardhat private keys.
  * - When start() runs, the bootnode container IP is retrieved from the Docker
- *   daemon after the bootnode starts. The actual IP (not a DNS hostname) is
- *   used in --bootnodes for all other nodes, satisfying Besu's requirement that
- *   the enode host is an IP address.
+ * daemon after the bootnode starts. The actual IP (not a DNS hostname) is
+ * used in --bootnodes for all other nodes, satisfying Besu's requirement that
+ * the enode host is an IP address.
  * - No curl calls, no admin_addPeer, no named Docker volumes.
  */
 public class NetworkOrchestrator {
@@ -126,8 +126,8 @@ public class NetworkOrchestrator {
      * 1. Bootnode starts first (no peers needed).
      * 2. Retrieve the bootnode's container IP from the Docker daemon.
      * 3. Inject --bootnodes=enode://<id>@<ip>:30303 into non-bootnode containers
-     *    BEFORE starting them. Besu requires an IP address (not a hostname) in
-     *    the --bootnodes parameter, so we cannot use DNS aliases here.
+     * BEFORE starting them. Besu requires an IP address (not a hostname) in
+     * the --bootnodes parameter, so we cannot use DNS aliases here.
      * 4. Start RPC nodes and observability stack.
      */
     public List<BesuNode> start() {

@@ -25,7 +25,7 @@ import java.util.UUID;
  *
  * <pre>{@code
  * TestReporter report = new TestReporter("Fail-Close Scenario",
- *     "Validates that plugin blocks 100% of transactions when Ingress is missing");
+ * "Validates that plugin blocks 100% of transactions when Ingress is missing");
  *
  * report.step("Starting validator node", "Besu is started without configuring BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS");
  * report.evidence("Container ID", containerId, Evidence.Type.RESULT);
@@ -419,7 +419,7 @@ public class TestReporter {
         w.println("| :--- | :--- |");
         w.println("| **Test ID** | `" + testId + "` |");
         w.println("| **Timestamp** | " + TIME_FMT.format(startTime) + " |");
-        w.println("| **Status** | " + (passed ? "✅ PASSED" : "❌ FAILED") + " |");
+        w.println("| **Status** | " + (passed ? " PASSED" : " FAILED") + " |");
         if (endTime != null) {
             Duration d = Duration.between(startTime, endTime);
             w.println("| **Total Duration** | " + formatDuration(d) + " |");
@@ -471,7 +471,7 @@ public class TestReporter {
                 for (Evidence ev : step.getEvidence()) {
                     switch (ev.getType()) {
                         case LOG:
-                            w.println("📋 **" + ev.getLabel() + "**");
+                            w.println(" **" + ev.getLabel() + "**");
                             w.println();
                             w.println("```log");
                             w.println(ev.getValue());
@@ -480,7 +480,7 @@ public class TestReporter {
                             break;
 
                         case CODE:
-                            w.println("💻 **" + ev.getLabel() + "**");
+                            w.println(" **" + ev.getLabel() + "**");
                             w.println();
                             w.println("```java");
                             w.println(ev.getValue());
@@ -489,17 +489,17 @@ public class TestReporter {
                             break;
 
                         case RESULT:
-                            w.println("📊 **" + ev.getLabel() + ":** `" + ev.getValue() + "`");
+                            w.println(" **" + ev.getLabel() + ":** `" + ev.getValue() + "`");
                             w.println();
                             break;
 
                         case METRIC:
-                            w.println("📐 **" + ev.getLabel() + ":** `" + ev.getValue() + "`");
+                            w.println(" **" + ev.getLabel() + ":** `" + ev.getValue() + "`");
                             w.println();
                             break;
 
                         case ERROR:
-                            w.println("🚨 **" + ev.getLabel() + "**");
+                            w.println(" **" + ev.getLabel() + "**");
                             w.println();
                             w.println("```text");
                             w.println(ev.getValue());
@@ -508,12 +508,12 @@ public class TestReporter {
                             break;
 
                         case OBSERVATION:
-                            w.println("> 💡 " + ev.getValue());
+                            w.println(">  " + ev.getValue());
                             w.println();
                             break;
 
                         case TABLE:
-                            w.println("📈 **" + ev.getLabel() + "**");
+                            w.println(" **" + ev.getLabel() + "**");
                             w.println();
                             writeEvidenceTable(w, ev.getTableData());
                             w.println();
@@ -527,9 +527,9 @@ public class TestReporter {
             }
 
             // Compact status footer per step
-            w.println("<sub>⏱️ " + TIME_FMT.format(step.getTimestamp()) +
+            w.println("<sub> " + TIME_FMT.format(step.getTimestamp()) +
                 " | " + step.getStatus().getIcon() + " " + step.getStatus().name() +
-                (step.getDuration() != null ? " | ⌛ " + step.getDuration() : "") +
+                (step.getDuration() != null ? " |  " + step.getDuration() : "") +
                 "</sub>");
             w.println();
             w.println("---");
@@ -568,7 +568,7 @@ public class TestReporter {
         w.println("| Field | Value |");
         w.println("| :--- | :--- |");
         w.println("| **Final Status** | " +
-            (passed ? "✅ PASSED" : "❌ FAILED") + " |");
+            (passed ? " PASSED" : " FAILED") + " |");
         if (conclusion != null) {
             w.println("| **Conclusion** | " + conclusion + " |");
         }

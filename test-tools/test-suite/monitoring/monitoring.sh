@@ -1,9 +1,9 @@
 #!/bin/bash
 # Monitor Stack for Plugin Permissioning Test Suite
 # Usage:
-#   ./monitoring.sh start   - Start Prometheus + Grafana
-#   ./monitoring.sh stop    - Stop and remove containers
-#   ./monitoring.sh status  - Show container status
+# ./monitoring.sh start   - Start Prometheus + Grafana
+# ./monitoring.sh stop    - Stop and remove containers
+# ./monitoring.sh status  - Show container status
 
 ACTION=${1:-status}
 
@@ -36,15 +36,15 @@ case $ACTION in
             grafana/grafana-oss:10.4.0
         
         echo ""
-        echo "✅ Monitoring stack started!"
-        echo "   Grafana:    http://localhost:3000 (admin/admin)"
-        echo "   Prometheus: http://localhost:9090"
+        echo "Monitoring stack started!"
+        echo "Grafana:    http://localhost:3000 (admin/admin)"
+        echo "Prometheus: http://localhost:9090"
         ;;
         
     stop)
         echo "Stopping monitoring stack..."
         docker rm -f plugin-prometheus plugin-grafana 2>/dev/null
-        echo "✅ Monitoring stack stopped."
+        echo "Monitoring stack stopped."
         ;;
         
     status)

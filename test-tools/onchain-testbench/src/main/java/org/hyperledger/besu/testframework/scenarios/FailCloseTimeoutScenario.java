@@ -23,11 +23,11 @@ import java.util.concurrent.TimeUnit;
  *
  * <h3>Test Flow</h3>
  * <ol>
- *   <li>Start network with plugin in secured mode, governance deployed</li>
- *   <li>Pause the Docker container hosting the validator (simulates Ingress unavailability)</li>
- *   <li>Attempt unauthorized transaction — should be blocked (fail-close)</li>
- *   <li>Measure decision latency (must be under plugin timeout)</li>
- *   <li>Unpause container, verify recovery (authorized tx flows again)</li>
+ * <li>Start network with plugin in secured mode, governance deployed</li>
+ * <li>Pause the Docker container hosting the validator (simulates Ingress unavailability)</li>
+ * <li>Attempt unauthorized transaction — should be blocked (fail-close)</li>
+ * <li>Measure decision latency (must be under plugin timeout)</li>
+ * <li>Unpause container, verify recovery (authorized tx flows again)</li>
  * </ol>
  *
  * <h3>Security Guarantee</h3>
@@ -105,7 +105,7 @@ public class FailCloseTimeoutScenario {
 
         if (!paused) {
             report.stepFailed("Could not pause container " + effectiveName);
-            report.conclusion("❌ Failed to simulate communication failure.");
+            report.conclusion(" Failed to simulate communication failure.");
             report.generateMarkdown();
             return report;
         }
@@ -173,21 +173,21 @@ public class FailCloseTimeoutScenario {
 
         if (wasBlocked && decisionLatency.compareTo(MAX_FAIL_CLOSE_LATENCY) <= 0) {
             report.observation(
-                "✅ The plugin blocked transaction in " + formatDuration(decisionLatency) + ", " +
+                " The plugin blocked transaction in " + formatDuration(decisionLatency) + ", " +
                 "within maximum threshold of " + formatDuration(MAX_FAIL_CLOSE_LATENCY) + ". " +
                 "Proves Fail-Close security behavior under communication failure."
             );
             report.stepPassed();
         } else if (wasBlocked) {
             report.observation(
-                "⚠️ Plugin blocked transaction, but latency (" +
+                " Plugin blocked transaction, but latency (" +
                 formatDuration(decisionLatency) + ") excedeu o limite de " +
                 formatDuration(MAX_FAIL_CLOSE_LATENCY) + ". Verificar timeout configurado."
             );
             report.stepPassed(); // Still passed because fail-close worked
         } else {
             report.stepFailed(
-                "❌ Plugin DID NOT block transaction during communication failure! " +
+                " Plugin DID NOT block transaction during communication failure! " +
                 "This violates Fail-Close security principles. " +
                 "Risk: unvalidated access could be allowed."
             );
@@ -226,7 +226,7 @@ public class FailCloseTimeoutScenario {
                 report.stepPassed();
             } else {
                 report.observation(
-                    "⚠️ Container unpaused but plugin may not have recovered " +
+                    " Container unpaused but plugin may not have recovered " +
                     "totalmente. Verificar logs para confirmar retomada."
                 );
                 report.stepPassed();
@@ -270,11 +270,11 @@ public class FailCloseTimeoutScenario {
         boolean scenarioPassed = wasBlocked && unpaused;
         report.conclusion(
             scenarioPassed
-                ? "✅ Acceptance Criterion #1 SATISFIED: During communication failure " +
+                ? " Acceptance Criterion #1 SATISFIED: During communication failure " +
                   "(paused container), the plugin enforced Fail-Close posture and blocked " +
                   "transactions safely. Normal operation resumed upon recovery. " +
                   "Decision latency: " + formatDuration(decisionLatency) + "."
-                : "❌ Scenario failure: inspect logs for diagnostics. " +
+                : " Scenario failure: inspect logs for diagnostics. " +
                   "Blocked=" + wasBlocked + ", Recovered=" + unpaused
         );
 

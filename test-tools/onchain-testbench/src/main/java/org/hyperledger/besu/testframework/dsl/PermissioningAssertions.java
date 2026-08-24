@@ -11,11 +11,11 @@ import java.time.Duration;
  *
  * <pre>{@code
  * PermissioningAssertions.assertThat(rogueNode)
- *     .isNotConnectedTo(validatorNode)
- *     .hasPluginLogMatch("P2P connection DENIED");
+ * .isNotConnectedTo(validatorNode)
+ * .hasPluginLogMatch("P2P connection DENIED");
  *
  * PermissioningAssertions.assertThat(receipt)
- *     .hasReversionReason("Account Not Allowed On-Chain");
+ * .hasReversionReason("Account Not Allowed On-Chain");
  * }</pre>
  */
 public class PermissioningAssertions extends Assertions {

@@ -37,9 +37,9 @@ LOGS_DIR = os.path.join(BASE_DIR, "logs")
 
 # Standard contract addresses pre-deployed in genesis (genesis-evolution.json)
 # Admin + AccountRules + NodeRules pre-configured with storage:
-#   - Admin registered in Ingresses ("admin" key -> Admin contract)
-#   - Rules registered in Ingresses ("rules" key -> AccountRules/NodeRules)
-#   - Admin (0xf39Fd6e5...) in allowlist of Admin contract and AccountRules
+# - Admin registered in Ingresses ("admin" key -> Admin contract)
+# - Rules registered in Ingresses ("rules" key -> AccountRules/NodeRules)
+# - Admin (0xf39Fd6e5...) in allowlist of Admin contract and AccountRules
 DEFAULT_CONTRACTS = {
     "account_ingress":      "0x0000000000000000000000000000000000008888",
     "node_ingress":         "0x0000000000000000000000000000000000009999",
@@ -218,9 +218,9 @@ def verify_contracts(rpc_url, contracts, config):
     for addr, label in to_check:
         code = rpc_call(rpc_url, "eth_getCode", [addr, "latest"])
         if code and len(code) > 4:
-            log_success(f"  ✓ {label} ({addr[:10]}...) — {len(code)} chars bytecode")
+            log_success(f"   {label} ({addr[:10]}...) — {len(code)} chars bytecode")
         else:
-            log_warning(f"  ⚠ {label} ({addr[:10]}...) — not found (may not be deployed yet)")
+            log_warning(f"   {label} ({addr[:10]}...) — not found (may not be deployed yet)")
             all_ok = False
 
     # Verify if Admin is authorized in AccountRules (if deployed)
@@ -231,9 +231,9 @@ def verify_contracts(rpc_url, contracts, config):
             "latest"
         ])
         if permitted and permitted != "0x" and int(permitted, 16) == 1:
-            log_success(f"  ✓ Admin ({c['admin_addr'][:10]}...) is PERMITTED in AccountRules")
+            log_success(f"   Admin ({c['admin_addr'][:10]}...) is PERMITTED in AccountRules")
         else:
-            log_warning(f"  ⚠ Admin ({c['admin_addr'][:10]}...) NOT in allowlist (may be expected)")
+            log_warning(f"   Admin ({c['admin_addr'][:10]}...) NOT in allowlist (may be expected)")
 
     return all_ok
 
@@ -597,24 +597,24 @@ def print_endpoints_summary(config):
         rpc_url = f"http://localhost:{rpc_p}" if rpc_p else "N/A"
         metrics_url = f"http://localhost:{metrics_p}/metrics" if metrics_p else "N/A"
 
-        print(f"🔹 {BOLD}{no_name}{RESET} [{role} | Besu: {ver} | Plugin: {plugin_status}]")
+        print(f" {BOLD}{no_name}{RESET} [{role} | Besu: {ver} | Plugin: {plugin_status}]")
         print(f"   ↳ {BOLD}RPC URL:{RESET}     {CYAN}{rpc_url}{RESET}")
         print(f"   ↳ {BOLD}Metrics:{RESET}     {metrics_url}")
         if use_plugin:
             print(f"   ↳ {BOLD}Ingress:{RESET}     {ingress}")
 
     print(f"\n{BOLD}{CYAN}--- SMART CONTRACTS (Pre-deployed in Genesis) ---{RESET}")
-    print(f"📍 {BOLD}Account Ingress:{RESET}    {c.get('account_ingress', 'N/A')}")
-    print(f"📍 {BOLD}Node Ingress:{RESET}       {c.get('node_ingress', 'N/A')}")
-    print(f"📍 {BOLD}Admin (proxy):{RESET}      {c.get('admin_contract', 'N/A')}")
-    print(f"📍 {BOLD}AccountRules (GEN1):{RESET} {c.get('account_rules', 'N/A')}")
-    print(f"📍 {BOLD}NodeRules (GEN1):{RESET}    {c.get('node_rules', 'N/A')}")
+    print(f" {BOLD}Account Ingress:{RESET}    {c.get('account_ingress', 'N/A')}")
+    print(f" {BOLD}Node Ingress:{RESET}       {c.get('node_ingress', 'N/A')}")
+    print(f" {BOLD}Admin (proxy):{RESET}      {c.get('admin_contract', 'N/A')}")
+    print(f" {BOLD}AccountRules (GEN1):{RESET} {c.get('account_rules', 'N/A')}")
+    print(f" {BOLD}NodeRules (GEN1):{RESET}    {c.get('node_rules', 'N/A')}")
 
     print(f"\n{BOLD}{CYAN}--- TEST KEYS AND ACCOUNTS ---{RESET}")
-    print(f"🔑 {BOLD}PERMITTED ACCOUNT (ADMIN):{RESET}")
+    print(f" {BOLD}PERMITTED ACCOUNT (ADMIN):{RESET}")
     print(f"   ↳ Address: {GREEN}{c.get('admin_addr', 'N/A')}{RESET} (Balance: 100k ETH)")
     print(f"   ↳ Private Key: {c.get('admin_pk', 'N/A')}")
-    print(f"🔑 {BOLD}BLOCKED ACCOUNT (UNAUTH):{RESET}")
+    print(f" {BOLD}BLOCKED ACCOUNT (UNAUTH):{RESET}")
     print(f"   ↳ Address: {RED}{c.get('unauth_addr', 'N/A')}{RESET}")
     print(f"   ↳ Private Key: {c.get('unauth_pk', 'N/A')}")
 
@@ -629,7 +629,7 @@ def print_endpoints_summary(config):
         perm_status = f"{GREEN}ACTIVE — Contracts registered, allowlists enforced{RESET}"
 
     print(f"\n{BOLD}{CYAN}--- PERMISSIONING STATUS ---{RESET}")
-    print(f"🔒 {perm_status}")
+    print(f" {perm_status}")
 
     print(f"\n{BOLD}{YELLOW}--- TEST INSTRUCTIONS ---{RESET}")
     print("1. Import the Postman collection in 'test-suite/postman/' into Postman.")
@@ -735,7 +735,7 @@ Examples:
 
     elif args.action == "start":
         print(f"\n{BOLD}{BLUE}====================================================================={RESET}")
-        print(f"{BOLD}{BLUE}⚙️  STARTING NETWORK PREPARATION: {config.get('nome_rede') or config.get('network_name')} {RESET}")
+        print(f"{BOLD}{BLUE}  STARTING NETWORK PREPARATION: {config.get('nome_rede') or config.get('network_name')} {RESET}")
         print(f"{BOLD}{BLUE}====================================================================={RESET}\n")
 
         plugin_path = config.get("plugin_jar_path",
@@ -795,7 +795,7 @@ Examples:
 
         # Final summary
         print(f"{BOLD}{CYAN}--- EXECUTION LOGS ---{RESET}")
-        print(f"📁 {log_dir}")
+        print(f" {log_dir}")
         if blocks_ok:
             if contracts_ok:
                 log_success("Network ready for permissioning tests!")

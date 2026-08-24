@@ -142,7 +142,7 @@ public class GovernanceUpgradeScenario {
 
         // Conclusion
         report.conclusion(
-            "✅ Hot-swap governance upgrade validated: Ingress pattern allows " +
+            " Hot-swap governance upgrade validated: Ingress pattern allows " +
             "swapping permissioning rules without node restarts. " +
             "Transition occurs in at most 1 block and is atomic. " +
             "This mechanism is essential for permissioned networks requiring " +

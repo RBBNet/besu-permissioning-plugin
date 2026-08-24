@@ -1,4 +1,4 @@
-# 🧪 Configurable Integration Test Suite (`test-suite`)
+# Configurable Integration Test Suite (`test-suite`)
 
 Integration test suite for certifying the **Besu On-Chain Permissioning Plugin**.
 
@@ -6,7 +6,7 @@ Integration test suite for certifying the **Besu On-Chain Permissioning Plugin**
 
 ---
 
-## 🗂️ Directory Structure
+## Directory Structure
 
 ```text
 test-suite/
@@ -40,7 +40,7 @@ test-suite/
 
 ---
 
-## 🚀 Execution
+## Execution
 
 ### Prerequisites
 * **Python 3**, **Docker**, and **Docker Compose**
@@ -87,7 +87,7 @@ See `monitoring/README.md` for complete details.
 
 ---
 
-## 📦 Pre-Deployed Genesis Contracts
+## Pre-Deployed Genesis Contracts
 
 Genesis (`templates/genesis.json`) is generated via `scripts/generate-genesis.sh` from forge build artifacts:
 
@@ -101,7 +101,7 @@ Genesis (`templates/genesis.json`) is generated via `scripts/generate-genesis.sh
 
 ---
 
-## 📝 Test Scenario Matrix
+## Test Scenario Matrix
 
 | Scenario | Description |
 | :--- | :--- |

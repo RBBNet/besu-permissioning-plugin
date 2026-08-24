@@ -8,7 +8,7 @@ if [ -z "$PROJECT" ]; then
 fi
 
 if [ ! -d "$PROJECT" ]; then
-    echo "❌ Project directory $PROJECT not found."
+    echo "Project directory $PROJECT not found."
     exit 1
 fi
 
@@ -32,9 +32,9 @@ executar_acao() {
     echo "Select container to apply command ($ACAO):"
     echo "------------------------------------------------"
     for i in "${!CONTAINERS[@]}"; do
-        echo " [$((i+1))] ${CONTAINERS[$i]}"
+        echo "[$((i+1))] ${CONTAINERS[$i]}"
     done
-    echo " [0] Cancel"
+    echo "[0] Cancel"
     echo "------------------------------------------------"
 
     read -p "Select option [0-${#CONTAINERS[@]}]: " ESCOLHA
@@ -51,25 +51,25 @@ executar_acao() {
 while true; do
     clear
     echo "===================================================="
-    echo "   BESU CONTAINER MANAGEMENT MENU: [$PROJECT]"
+    echo "BESU CONTAINER MANAGEMENT MENU: [$PROJECT]"
     echo "===================================================="
-    echo " [1] STOP a running node"
-    echo " [2] START a stopped node"
-    echo " [3] RESTART a running node"
-    echo " [4] View status of all nodes"
-    echo " [0] Exit"
+    echo "[1] STOP a running node"
+    echo "[2] START a stopped node"
+    echo "[3] RESTART a running node"
+    echo "[4] View status of all nodes"
+    echo "[0] Exit"
     echo "===================================================="
     read -p "Select option [0-4]: " OPTION
 
     case $OPTION in
         1)
-            executar_acao "stop" "running" "❌ No running nodes available to stop."
+            executar_acao "stop" "running" " No running nodes available to stop."
             ;;
         2)
-            executar_acao "start" "exited" "❌ No stopped nodes available to start."
+            executar_acao "start" "exited" " No stopped nodes available to start."
             ;;
         3)
-            executar_acao "restart" "running" "❌ No running nodes available to restart."
+            executar_acao "restart" "running" " No running nodes available to restart."
             ;;
         4)
             echo ""

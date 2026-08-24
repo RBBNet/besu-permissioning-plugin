@@ -13,10 +13,10 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Fluxo do teste:</h3>
  * <ol>
- *   <li>Iniciar um validador em modo transparente (sem Ingress configurado)</li>
- *   <li>Attempt to connect an unauthorized external node</li>
- *   <li>Verify: P2P connection is DENIED (Fail-Close)</li>
- *   <li>Verify: plugin logs contain FAIL-CLOSE indicator</li>
+ * <li>Iniciar um validador em modo transparente (sem Ingress configurado)</li>
+ * <li>Attempt to connect an unauthorized external node</li>
+ * <li>Verify: P2P connection is DENIED (Fail-Close)</li>
+ * <li>Verify: plugin logs contain FAIL-CLOSE indicator</li>
  * </ol>
  */
 public class FailCloseScenario {
@@ -129,10 +129,10 @@ public class FailCloseScenario {
         boolean scenarioPassed = hasFailClose && hasDenial;
         report.conclusion(
             scenarioPassed
-                ? "✅ Fail-Close confirmado: o plugin de permissionamento bloqueia preventivamente todas " +
+                ? " Fail-Close confirmado: o plugin de permissionamento bloqueia preventivamente todas " +
                   "connections and transactions when Ingress is not configured. " +
                   "Network remains secure by default."
-                : "❌ Fail-Close NOT confirmed: plugin did not demonstrate expected " +
+                : " Fail-Close NOT confirmed: plugin did not demonstrate expected " +
                   "preventive blocking behavior. Verify plugin installation and configuration."
         );
 
@@ -178,8 +178,8 @@ public class FailCloseScenario {
 
         report.conclusion(
             hasError
-                ? "✅ Plugin detected invalid Ingress and activated Fail-Close."
-                : "❌ Failure to detect invalid configuration."
+                ? " Plugin detected invalid Ingress and activated Fail-Close."
+                : " Failure to detect invalid configuration."
         );
 
         report.generateMarkdown();

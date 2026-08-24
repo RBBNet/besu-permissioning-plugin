@@ -14,12 +14,12 @@ DOCKER_NET="${PROJECT,,}_default"
 
 # Safety check
 if [ ! -f "$PROJECT/.env.configs/genesis.json" ]; then
-    echo "❌ FATAL ERROR: File $PROJECT/.env.configs/genesis.json NOT FOUND!"
+    echo "FATAL ERROR: File $PROJECT/.env.configs/genesis.json NOT FOUND!"
     exit 1
 fi
 
 if [ ! -f "$PROJECT/.env.configs/log.xml" ]; then
-    echo "❌ FATAL ERROR: File $PROJECT/.env.configs/log.xml NOT FOUND!"
+    echo "FATAL ERROR: File $PROJECT/.env.configs/log.xml NOT FOUND!"
     exit 1
 fi
 
@@ -43,7 +43,7 @@ BOOT_PUB=$(cat $PROJECT/.env.configs/nodes/boot1/key.pub | sed 's/^0x//')
 BOOT_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${PROJECT,,}_boot1_1)
 
 echo "======================================================================"
-echo "🚨 MANDATORY STEP: AUTHORIZE NODE ON-CHAIN"
+echo "MANDATORY STEP: AUTHORIZE NODE ON-CHAIN"
 echo "In another terminal, export node credentials and run contract setup:"
 echo ""
 echo "export ENODE_PUB_KEY=\"$PUB_KEY\""
@@ -51,7 +51,7 @@ echo "export NODE_NAME=\"$NEW_NODE\""
 echo "export NODE_TYPE=\"1\""
 echo ""
 echo "======================================================================"
-echo "⭐ SAVE THIS NODE ADDRESS IF PROMOTING TO VALIDATOR LATER:"
+echo "SAVE THIS NODE ADDRESS IF PROMOTING TO VALIDATOR LATER:"
 echo "Address: $NODE_ADDRESS"
 echo "======================================================================"
 read -p "Press ENTER after contract authorization succeeds..."
@@ -78,5 +78,5 @@ docker run -d --name ${PROJECT,,}_${NEW_NODE}_1 \
   --bootnodes=enode://${BOOT_PUB}@${BOOT_IP}:30303 \
   --metrics-enabled=true --metrics-host=0.0.0.0
 
-echo "✅ Node $NEW_NODE created on port $RPC_PORT and synchronizing block history."
+echo "Node $NEW_NODE created on port $RPC_PORT and synchronizing block history."
 echo "After sync completes, execute: ./secure_node.sh $PROJECT $NEW_NODE $RPC_PORT"

@@ -4,7 +4,7 @@
 # ============================================================================
 # Executed by orchestrator after network starts (as setup_script).
 # Environment variables:
-#   RPC_URL, ACCOUNT_INGRESS, NODE_INGRESS, ADMIN_PK, ADMIN_ADDR
+# RPC_URL, ACCOUNT_INGRESS, NODE_INGRESS, ADMIN_PK, ADMIN_ADDR
 # ============================================================================
 set -e
 
@@ -30,7 +30,7 @@ for i in $(seq 1 60); do
         --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
         "$RPC_URL" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('result','0x0'))" 2>/dev/null || echo "0x0")
     if [ "$BLOCK" != "0x0" ]; then
-        echo "✓ RPC responding on block $BLOCK"
+        echo "RPC responding on block $BLOCK"
         break
     fi
     sleep 2
@@ -48,7 +48,7 @@ if [ -z "$ADMIN_DEPLOYED" ]; then
     echo "$ADMIN_OUT"
     exit 1
 fi
-echo "  Admin: $ADMIN_DEPLOYED"
+echo "Admin: $ADMIN_DEPLOYED"
 sleep 3
 
 # Deploy AccountRules
@@ -64,7 +64,7 @@ if [ -z "$ACCT_RULES" ]; then
     echo "$ACCT_RULES_OUT"
     exit 1
 fi
-echo "  AccountRules: $ACCT_RULES"
+echo "AccountRules: $ACCT_RULES"
 sleep 3
 
 # Deploy NodeRules
@@ -80,7 +80,7 @@ if [ -z "$NODE_RULES" ]; then
     echo "$NODE_RULES_OUT"
     exit 1
 fi
-echo "  NodeRules: $NODE_RULES"
+echo "NodeRules: $NODE_RULES"
 sleep 3
 
 # Register Admin in Ingresses

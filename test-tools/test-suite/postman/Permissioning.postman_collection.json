@@ -2,12 +2,12 @@
     "info": {
         "_postman_id": "c1f8a8b8-07f9-4d64-8848-005d4df4b256",
         "name": "Plugin Permissioning Suite v2",
-        "description": "On-chain permissioning test suite for Hyperledger Besu On-Chain Permissioning Plugin.\n\n✅ Compatible with Besu 25.12.0+ and 26.x.\n\n📋 PREREQUISITES:\n1. Start network: python3 orchestrator.py -c configs/scenario-full-network.json -a start --timeout 180\n2. Generate transactions: python3 postman/gen-signed-tx.py && python3 postman/gen-signed-tx.py --account unauth\n3. Copy hex to ADMIN_SIGNED_TX e UNAUTH_SIGNED_TX\n\n📖 Read postman/README.md for full instructions.",
+        "description": "On-chain permissioning test suite for Hyperledger Besu On-Chain Permissioning Plugin.\n\n Compatible with Besu 25.12.0+ and 26.x.\n\n PREREQUISITES:\n1. Start network: python3 orchestrator.py -c configs/scenario-full-network.json -a start --timeout 180\n2. Generate transactions: python3 postman/gen-signed-tx.py && python3 postman/gen-signed-tx.py --account unauth\n3. Copy hex to ADMIN_SIGNED_TX e UNAUTH_SIGNED_TX\n\n Read postman/README.md for full instructions.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
         {
-            "name": "⚙️ 0. Setup & Diagnostics",
+            "name": " 0. Setup & Diagnostics",
             "description": "Diagnostic requests to verify RPC connectivity and retrieve network state. Run these first.",
             "item": [
                 {
@@ -46,7 +46,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Retrieves network chainId. Must return 0xb8efce (12120014).\n\n🔍 Used by gen-signed-tx.py to sign EIP-155 transactions."
+                        "description": "Retrieves network chainId. Must return 0xb8efce (12120014).\n\n Used by gen-signed-tx.py to sign EIP-155 transactions."
                     },
                     "response": []
                 },
@@ -88,7 +88,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Ensures basic connectivity with Besu node and returns current block number in hex.\n\n✅ If returning 0x60+, network is producing blocks normally."
+                        "description": "Ensures basic connectivity with Besu node and returns current block number in hex.\n\n If returning 0x60+, network is producing blocks normally."
                     },
                     "response": []
                 },
@@ -170,7 +170,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Retrieves current nonce for ADMIN account (0xf39Fd6e5...).\n\n📝 Use this value when generating signed transaction:\n   python3 gen-signed-tx.py --nonce <VALOR>"
+                        "description": "Retrieves current nonce for ADMIN account (0xf39Fd6e5...).\n\n Use this value when generating signed transaction:\n   python3 gen-signed-tx.py --nonce <VALOR>"
                     },
                     "response": []
                 },
@@ -210,15 +210,15 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Gets current nonce for UNAUTH account (0x70997970...).\n\n📝 This account is NOT in allowlist — transactions from it should be rejected in PF-02."
+                        "description": "Gets current nonce for UNAUTH account (0x70997970...).\n\n This account is NOT in allowlist — transactions from it should be rejected in PF-02."
                     },
                     "response": []
                 }
             ]
         },
         {
-            "name": "🔐 1. Account Permissioning (PF)",
-            "description": "Account permissioning tests.\n\n📌 BEFORE RUNNING:\n1. Run: python3 postman/gen-signed-tx.py\n2. Copy hex into ADMIN_SIGNED_TX variable\n3. Run: python3 postman/gen-signed-tx.py --account unauth\n4. Copy hex into UNAUTH_SIGNED_TX variable",
+            "name": " 1. Account Permissioning (PF)",
+            "description": "Account permissioning tests.\n\n BEFORE RUNNING:\n1. Run: python3 postman/gen-signed-tx.py\n2. Copy hex into ADMIN_SIGNED_TX variable\n3. Run: python3 postman/gen-signed-tx.py --account unauth\n4. Copy hex into UNAUTH_SIGNED_TX variable",
             "item": [
                 {
                     "name": "PF-01: eth_sendRawTransaction (Conta Permitida)",
@@ -233,13 +233,13 @@
                                     "    var jsonData = pm.response.json();",
                                     "    // Success = has 'result' (hash) and NO 'error'",
                                     "    if (jsonData.result && !jsonData.error) {",
-                                    "        console.log(\"✅ PF-01 PASSOU: tx hash =\", jsonData.result);",
+                                    "        console.log(\" PF-01 PASSOU: tx hash =\", jsonData.result);",
                                     "        pm.expect(jsonData.result).to.match(/^0x[0-9a-fA-F]{64}$/);",
                                     "    } else if (jsonData.error) {",
-                                    "        console.log(\"❌ PF-01 FALHOU:\", JSON.stringify(jsonData.error));",
+                                    "        console.log(\" PF-01 FALHOU:\", JSON.stringify(jsonData.error));",
                                     "        if (jsonData.error.code === -32602) {",
-                                    "            console.log(\"   ⚠ Invalid params = malformed transaction. Re-run gen-signed-tx.py.\");",
-                                    "            console.log(\"   ⚠ Verifique o nonce (request 0.4) e chain ID (request 0.1).\");",
+                                    "            console.log(\"    Invalid params = malformed transaction. Re-run gen-signed-tx.py.\");",
+                                    "            console.log(\"    Verifique o nonce (request 0.4) e chain ID (request 0.1).\");",
                                     "        }",
                                     "        pm.expect.fail(\"PF-01 should accept transaction: \" + jsonData.error.message);",
                                     "    }",
@@ -267,7 +267,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Sends transaction signed by ADMIN account (on allowlist).\n\n✅ EXPECTED: Returns transaction hash 0x...\n❌ IF FAILS WITH -32602: Invalid transaction format. Re-run gen-signed-tx.py with correct nonce (ver request 0.4).\n\n📝 Variable {{ADMIN_SIGNED_TX}} must contain hex generated by:\n   python3 postman/gen-signed-tx.py"
+                        "description": "Sends transaction signed by ADMIN account (on allowlist).\n\n EXPECTED: Returns transaction hash 0x...\n IF FAILS WITH -32602: Invalid transaction format. Re-run gen-signed-tx.py with correct nonce (ver request 0.4).\n\n Variable {{ADMIN_SIGNED_TX}} must contain hex generated by:\n   python3 postman/gen-signed-tx.py"
                     },
                     "response": []
                 },
@@ -288,18 +288,18 @@
                                     "        console.log(\"Erro recebido: code=\" + code + \" msg=\" + msg);",
                                     "        // Plugin rejects with -32007 (or -32000 in some scenarios)",
                                     "        if (code === -32007 || msg.includes(\"not authorized\") || msg.includes(\"permission\")) {",
-                                    "            console.log(\"✅ PF-02 PASSED: Account blocked correctly.\");",
+                                    "            console.log(\" PF-02 PASSED: Account blocked correctly.\");",
                                     "            pm.expect(true).to.be.true;",
                                     "        } else if (code === -32602) {",
-                                    "            console.log(\"⚠ Invalid params = malformed transaction, NOT permissioning error.\");",
+                                    "            console.log(\" Invalid params = malformed transaction, NOT permissioning error.\");",
                                     "            console.log(\"   Rode gen-signed-tx.py --account unauth novamente.\");",
                                     "            pm.expect.fail(\"PF-02: Erro errado. Esperado -32007, recebido -32602 (tx mal formada)\");",
                                     "        } else {",
-                                    "            console.log(\"⚠ Erro inesperado:\", code, msg);",
+                                    "            console.log(\" Erro inesperado:\", code, msg);",
                                     "            pm.expect.fail(\"PF-02: Erro inesperado: \" + code + \" - \" + msg);",
                                     "        }",
                                     "    } else if (jsonData.result) {",
-                                    "        console.log(\"❌ PF-02 FAILED: Blocked account transaction was accepted!\");",
+                                    "        console.log(\" PF-02 FAILED: Blocked account transaction was accepted!\");",
                                     "        console.log(\"   Hash:\", jsonData.result);",
                                     "        console.log(\"   Plugin may not be working correctly.\");",
                                     "        pm.expect.fail(\"PF-02: Blocked account transaction succeeded! Plugin not enforcing permissioning.\");",
@@ -328,7 +328,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Sends transaction signed by UNAUTH account (NOT on allowlist).\n\n✅ EXPECTED: Error code -32007 or unauthorized error response.\n\n📝 Variable {{UNAUTH_SIGNED_TX}} must contain hex generated by:\n   python3 postman/gen-signed-tx.py --account unauth"
+                        "description": "Sends transaction signed by UNAUTH account (NOT on allowlist).\n\n EXPECTED: Error code -32007 or unauthorized error response.\n\n Variable {{UNAUTH_SIGNED_TX}} must contain hex generated by:\n   python3 postman/gen-signed-tx.py --account unauth"
                     },
                     "response": []
                 },
@@ -344,7 +344,7 @@
                                     "    var jsonData = pm.response.json();",
                                     "    if (jsonData.result) {",
                                     "        var isAdmin = parseInt(jsonData.result, 16);",
-                                    "        console.log(\"isAdmin(ADMIN) =\", isAdmin ? \"✅ YES\" : \"❌ NO\");",
+                                    "        console.log(\"isAdmin(ADMIN) =\", isAdmin ? \" YES\" : \" NO\");",
                                     "        pm.expect(isAdmin).to.equal(1, \"ADMIN deveria ser administrador\");",
                                     "    } else if (jsonData.error) {",
                                     "        console.log(\"Erro:\", JSON.stringify(jsonData.error));",
@@ -374,7 +374,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Verifies if ADMIN account is registered as admin in Admin contract (0x181a92c9...).\n\n📖 Function: isAdmin(address)\n🔧 Selector: 0xfe9fbb80\n\n✅ EXPECTED: Returns 0x0000...0001 (true = is admin).\n\n💡 NOTE: AccountRules.accountPermitted() has access control and can only be called by plugin via Ingress. Use Admin contract for direct checks."
+                        "description": "Verifies if ADMIN account is registered as admin in Admin contract (0x181a92c9...).\n\n Function: isAdmin(address)\n Selector: 0xfe9fbb80\n\n EXPECTED: Returns 0x0000...0001 (true = is admin).\n\n NOTE: AccountRules.accountPermitted() has access control and can only be called by plugin via Ingress. Use Admin contract for direct checks."
                     },
                     "response": []
                 },
@@ -390,7 +390,7 @@
                                     "    var jsonData = pm.response.json();",
                                     "    if (jsonData.result) {",
                                     "        var isAdmin = parseInt(jsonData.result, 16);",
-                                    "        console.log(\"isAdmin(UNAUTH) =\", isAdmin ? \"YES\" : \"✅ NO\");",
+                                    "        console.log(\"isAdmin(UNAUTH) =\", isAdmin ? \"YES\" : \" NO\");",
                                     "        pm.expect(isAdmin).to.equal(0, \"UNAUTH should NOT be administrator\");",
                                     "    } else if (jsonData.error) {",
                                     "        console.log(\"Erro:\", JSON.stringify(jsonData.error));",
@@ -420,14 +420,14 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Verifies if UNAUTH account is registered as admin.\n\n✅ EXPECTED: Returns 0x0000...0000 (false = NOT admin).\n\nConfirms that only ADMIN has administrative privileges."
+                        "description": "Verifies if UNAUTH account is registered as admin.\n\n EXPECTED: Returns 0x0000...0000 (false = NOT admin).\n\nConfirms that only ADMIN has administrative privileges."
                     },
                     "response": []
                 }
             ]
         },
         {
-            "name": "🌐 2. Node Permissioning (NR)",
+            "name": " 2. Node Permissioning (NR)",
             "description": "Node permissioning tests. Verifies if NodeRules is operational.",
             "item": [
                 {
@@ -444,7 +444,7 @@
                                     "        console.log(\"Resposta NodeRules:\", jsonData.result);",
                                     "        pm.expect(jsonData.result).to.not.equal(\"0x\");",
                                     "    } else if (jsonData.error) {",
-                                    "        console.log(\"⚠ NodeRules may not be responding:\", JSON.stringify(jsonData.error));",
+                                    "        console.log(\" NodeRules may not be responding:\", JSON.stringify(jsonData.error));",
                                     "        pm.expect.fail(\"Falha: \" + jsonData.error.message);",
                                     "    }",
                                     "});"
@@ -471,14 +471,14 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Queries NodeRules contract (0xf01d20a2...) to verify if a node address is permitted.\n\n📖 Function: nodePermitted(address)\n🔧 Selector: 0xfe9fbb80\n\n✅ EXPECTED: Returns 0x0000...0001 if address is registered as permitted node."
+                        "description": "Queries NodeRules contract (0xf01d20a2...) to verify if a node address is permitted.\n\n Function: nodePermitted(address)\n Selector: 0xfe9fbb80\n\n EXPECTED: Returns 0x0000...0001 if address is registered as permitted node."
                     },
                     "response": []
                 }
             ]
         },
         {
-            "name": "📋 3. Contract Verification (CV)",
+            "name": " 3. Contract Verification (CV)",
             "description": "On-chain checks for pre-deployed genesis contracts: bytecodes, Ingress registrations, and allowlists.",
             "item": [
                 {
@@ -520,7 +520,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Verifies if Account Ingress (0x0000...8888) is deployed with bytecode.\n\n✅ EXPECTED: Returns bytecode > 1000 bytes."
+                        "description": "Verifies if Account Ingress (0x0000...8888) is deployed with bytecode.\n\n EXPECTED: Returns bytecode > 1000 bytes."
                     },
                     "response": []
                 },
@@ -563,7 +563,7 @@
                                 "{{RPC_URL}}"
                             ]
                         },
-                        "description": "Verifies if Node Ingress (0x0000...9999) is deployed with bytecode.\n\n✅ EXPECTED: Returns bytecode > 1000 bytes."
+                        "description": "Verifies if Node Ingress (0x0000...9999) is deployed with bytecode.\n\n EXPECTED: Returns bytecode > 1000 bytes."
                     },
                     "response": []
                 },
@@ -699,8 +699,8 @@
             ]
         },
         {
-            "name": "💥 4. Chaos & Fail-Close (FC)",
-            "description": "Resilience tests: fail-close behavior when Ingress is missing or invalid.\n\n⚠ These tests require specific test scenarios: scenario-full-network.json:\n   - FC-01: scenario-failclose-no-ingress.json\n   - FC-02: scenario-failclose-invalid-ingress.json",
+            "name": " 4. Chaos & Fail-Close (FC)",
+            "description": "Resilience tests: fail-close behavior when Ingress is missing or invalid.\n\n These tests require specific test scenarios: scenario-full-network.json:\n   - FC-01: scenario-failclose-no-ingress.json\n   - FC-02: scenario-failclose-invalid-ingress.json",
             "item": [
                 {
                     "name": "FC-01: Transaction with Missing Ingress (Fail-Close)",
@@ -713,11 +713,11 @@
                                     "    pm.response.to.have.status(200);",
                                     "    var jsonData = pm.response.json();",
                                     "    if (jsonData.error) {",
-                                    "        console.log(\"✅ FC-01: Fail-close ativado:\", jsonData.error.message);",
+                                    "        console.log(\" FC-01: Fail-close ativado:\", jsonData.error.message);",
                                     "        pm.expect(jsonData.error.code).to.be.oneOf([-32007, -32000, -32603]);",
                                     "        pm.expect(true).to.be.true;",
                                     "    } else if (jsonData.result) {",
-                                    "        console.log(\"❌ FC-01 FAILED: Transaction accepted without Ingress!\");",
+                                    "        console.log(\" FC-01 FAILED: Transaction accepted without Ingress!\");",
                                     "        pm.expect.fail(\"FC-01: Fail-close DID NOT work. Transaction accepted without Ingress.\");",
                                     "    }",
                                     "});"
@@ -744,7 +744,7 @@
                                 "{{FC_RPC_URL}}"
                             ]
                         },
-                        "description": "Tests scenario without Ingress configured.\n\n📌 REQUIRES: Network started with scenario-failclose-no-ingress.json\n   python3 orchestrator.py -c configs/scenario-failclose-no-ingress.json -a start --timeout 180\n\n✅ EXPECTED: Transaction BLOCKED even for ADMIN account. Plugin enters fail-close mode when Ingress is missing.\n\n⚠ Variable {{FC_RPC_URL}} must point to fail-close scenario node (porta pode ser diferente de 9005)."
+                        "description": "Tests scenario without Ingress configured.\n\n REQUIRES: Network started with scenario-failclose-no-ingress.json\n   python3 orchestrator.py -c configs/scenario-failclose-no-ingress.json -a start --timeout 180\n\n EXPECTED: Transaction BLOCKED even for ADMIN account. Plugin enters fail-close mode when Ingress is missing.\n\n Variable {{FC_RPC_URL}} must point to fail-close scenario node (porta pode ser diferente de 9005)."
                     },
                     "response": []
                 },
@@ -759,10 +759,10 @@
                                     "    pm.response.to.have.status(200);",
                                     "    var jsonData = pm.response.json();",
                                     "    if (jsonData.error) {",
-                                    "        console.log(\"✅ FC-02: Fail-close ativado:\", jsonData.error.message);",
+                                    "        console.log(\" FC-02: Fail-close ativado:\", jsonData.error.message);",
                                     "        pm.expect(true).to.be.true;",
                                     "    } else if (jsonData.result) {",
-                                    "        console.log(\"❌ FC-02 FAILED: Transaction accepted with invalid Ingress!\");",
+                                    "        console.log(\" FC-02 FAILED: Transaction accepted with invalid Ingress!\");",
                                     "        pm.expect.fail(\"FC-02: Fail-close did NOT work.\");",
                                     "    }",
                                     "});"
@@ -789,7 +789,7 @@
                                 "{{FC_RPC_URL}}"
                             ]
                         },
-                        "description": "Tests scenario with Ingress pointing to non-existent address.\n\n📌 REQUIRES: Network started with scenario-failclose-invalid-ingress.json\n   python3 orchestrator.py -c configs/scenario-failclose-invalid-ingress.json -a start --timeout 180\n\n✅ EXPECTED: Transaction BLOCKED. Plugin attempts loading contract from Ingress address and fails-close."
+                        "description": "Tests scenario with Ingress pointing to non-existent address.\n\n REQUIRES: Network started with scenario-failclose-invalid-ingress.json\n   python3 orchestrator.py -c configs/scenario-failclose-invalid-ingress.json -a start --timeout 180\n\n EXPECTED: Transaction BLOCKED. Plugin attempts loading contract from Ingress address and fails-close."
                     },
                     "response": []
                 }
@@ -856,13 +856,13 @@
             "key": "ADMIN_SIGNED_TX",
             "value": "0x_COLOQUE_AQUI_O_HEX_GERADO_POR_gen_signed_tx_py",
             "type": "string",
-            "description": "⚠ PREENCHA: resultado de 'python3 postman/gen-signed-tx.py'"
+            "description": " PREENCHA: resultado de 'python3 postman/gen-signed-tx.py'"
         },
         {
             "key": "UNAUTH_SIGNED_TX",
             "value": "0x_COLOQUE_AQUI_O_HEX_GERADO_POR_gen_signed_tx_py__account_unauth",
             "type": "string",
-            "description": "⚠ PREENCHA: resultado de 'python3 postman/gen-signed-tx.py --account unauth'"
+            "description": " PREENCHA: resultado de 'python3 postman/gen-signed-tx.py --account unauth'"
         }
     ]
 }
