@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Tag("multiversion")
 @Tag("integration")
+@org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "runIntegration", matches = "true")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class MultiVersionPluginTest {
     private static final Logger LOG = LoggerFactory.getLogger(MultiVersionPluginTest.class);

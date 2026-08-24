@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   ./gradlew test --tests "*PermissioningLogEvidenceTest" -Dperm.genesis.path=./genesis.json
  */
 @Tag("integration")
+@org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "runIntegration", matches = "true")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PermissioningLogEvidenceTest {
     private static final Logger LOG = LoggerFactory.getLogger(PermissioningLogEvidenceTest.class);
@@ -49,8 +50,10 @@ class PermissioningLogEvidenceTest {
         genesisPath = resolveGenesisPath();
         LOG.info("Genesis: {}", genesisPath.toAbsolutePath());
 
+        // Standard Anvil/Hardhat public test key — DO NOT USE IN PRODUCTION
         authorized = Credentials.create(
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        // Standard Anvil/Hardhat public test key — DO NOT USE IN PRODUCTION
         unauthorized = Credentials.create(
             "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
         LOG.info("Authorized:   {}", authorized.getAddress());
