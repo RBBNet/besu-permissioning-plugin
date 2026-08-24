@@ -25,14 +25,14 @@ import java.util.UUID;
  *
  * <pre>{@code
  * TestReporter report = new TestReporter("Fail-Close Scenario",
- *     "Valida que o plugin bloqueia 100% das transações quando o Ingress está ausente");
+ *     "Validates that plugin blocks 100% of transactions when Ingress is missing");
  *
- * report.step("Iniciando nó validador", "O Besu é iniciado sem configurar BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS");
+ * report.step("Starting validator node", "Besu is started without configuring BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS");
  * report.evidence("Container ID", containerId, Evidence.Type.RESULT);
  * report.log("PermissioningPlugin: FAIL-CLOSE mode activated");
  * report.stepPassed();
  *
- * report.conclusion("Fail-Close confirmado: todas as conexões bloqueadas preventivamente");
+ * report.conclusion("Fail-Close confirmed: all connections preventively blocked");
  * report.generateMarkdown();
  * }</pre>
  */
@@ -69,7 +69,7 @@ public class TestReporter {
         this.startTime = Instant.now();
         this.steps = new ArrayList<>();
         this.metadata = new LinkedHashMap<>();
-        this.outputDir = "docs/relatorios";
+        this.outputDir = "docs/reports";
         this.passed = true;
     }
 
@@ -110,7 +110,7 @@ public class TestReporter {
      */
     public TestReporter evidence(String label, String value, Evidence.Type type) {
         if (currentStep == null) {
-            step("(passo automático)");
+            step("(automatic step)");
         }
         currentStep.addEvidence(label, value, type);
         return this;
@@ -141,7 +141,7 @@ public class TestReporter {
      * Adds an observation (free-form note).
      */
     public TestReporter observation(String note) {
-        return evidence("Observação", note, Evidence.Type.OBSERVATION);
+        return evidence("Observation", note, Evidence.Type.OBSERVATION);
     }
 
     /**
@@ -199,7 +199,7 @@ public class TestReporter {
     public TestReporter conclusion(String message) {
         this.conclusion = message;
         this.endTime = Instant.now();
-        LOG.info("Conclusão: {}", message);
+        LOG.info("Conclusion: {}", message);
         return this;
     }
 
@@ -276,7 +276,7 @@ public class TestReporter {
         // Also generate SuperLog audit log
         generateSuperLog(dir);
 
-        LOG.info("Relatório gerado: {}", filePath.toAbsolutePath());
+        LOG.info("Report generated: {}", filePath.toAbsolutePath());
         return filePath.toAbsolutePath().toString();
     }
 
@@ -415,21 +415,21 @@ public class TestReporter {
     private void writeHeader(PrintWriter w) {
         w.println("# Permissioning Test Report: " + testName);
         w.println();
-        w.println("| Campo | Valor |");
+        w.println("| Field | Value |");
         w.println("| :--- | :--- |");
-        w.println("| **ID do Teste** | `" + testId + "` |");
-        w.println("| **Data/Hora** | " + TIME_FMT.format(startTime) + " |");
+        w.println("| **Test ID** | `" + testId + "` |");
+        w.println("| **Timestamp** | " + TIME_FMT.format(startTime) + " |");
         w.println("| **Status** | " + (passed ? "✅ PASSED" : "❌ FAILED") + " |");
         if (endTime != null) {
             Duration d = Duration.between(startTime, endTime);
-            w.println("| **Duração Total** | " + formatDuration(d) + " |");
+            w.println("| **Total Duration** | " + formatDuration(d) + " |");
         if (dockerLogDir != null) {
             w.println("| **Docker Logs** | `" + dockerLogDir + "` |");
         }
         }
         w.println();
         if (testDescription != null) {
-            w.println("> **Objetivo:** " + testDescription);
+            w.println("> **Goal:** " + testDescription);
             w.println();
         }
         w.println("---");
@@ -438,9 +438,9 @@ public class TestReporter {
 
     private void writeMetadata(PrintWriter w) {
         if (metadata.isEmpty()) return;
-        w.println("## Contexto do Ambiente");
+        w.println("## Environment Context");
         w.println();
-        w.println("| Parâmetro | Valor |");
+        w.println("| Parameter | Value |");
         w.println("| :--- | :--- |");
         for (var entry : metadata.entrySet()) {
             w.println("| **" + entry.getKey() + "** | `" + entry.getValue() + "` |");
@@ -449,11 +449,11 @@ public class TestReporter {
     }
 
     private void writeSteps(PrintWriter w) {
-        w.println("## Fluxo de Execução");
+        w.println("## Execution Flow");
         w.println();
 
         for (ExecutionStep step : steps) {
-            w.println("### Passo " + step.getStepNumber() + ": " +
+            w.println("### Step " + step.getStepNumber() + ": " +
                 step.getStatus().getIcon() + " " + step.getTitle());
             w.println();
 
@@ -465,7 +465,7 @@ public class TestReporter {
             // If there's evidence, it PROVES what the step claims.
             // Evidence comes first — it's the proof, not metadata.
             if (!step.getEvidence().isEmpty()) {
-                w.println("**Evidências:**");
+                w.println("**Evidence:**");
                 w.println();
 
                 for (Evidence ev : step.getEvidence()) {
@@ -522,7 +522,7 @@ public class TestReporter {
                 }
             } else {
                 // No evidence = step is purely explanatory
-                w.println("*(etapa explicativa)*");
+                w.println("*(explanatory step)*");
                 w.println();
             }
 
@@ -563,29 +563,29 @@ public class TestReporter {
     }
 
     private void writeConclusion(PrintWriter w) {
-        w.println("## Conclusão");
+        w.println("## Conclusion");
         w.println();
-        w.println("| Campo | Valor |");
+        w.println("| Field | Value |");
         w.println("| :--- | :--- |");
-        w.println("| **Status Final** | " +
+        w.println("| **Final Status** | " +
             (passed ? "✅ PASSED" : "❌ FAILED") + " |");
         if (conclusion != null) {
-            w.println("| **Conclusão** | " + conclusion + " |");
+            w.println("| **Conclusion** | " + conclusion + " |");
         }
-        w.println("| **Total de Passos** | " + steps.size() + " |");
+        w.println("| **Total Steps** | " + steps.size() + " |");
         long passedSteps = steps.stream()
             .filter(s -> s.getStatus() == ExecutionStep.Status.PASSED).count();
         long failedSteps = steps.stream()
             .filter(s -> s.getStatus() == ExecutionStep.Status.FAILED).count();
-        w.println("| **Passos com Sucesso** | " + passedSteps + " |");
-        w.println("| **Passos com Falha** | " + failedSteps + " |");
+        w.println("| **Passed Steps** | " + passedSteps + " |");
+        w.println("| **Failed Steps** | " + failedSteps + " |");
         w.println();
     }
 
     private void writeFooter(PrintWriter w) {
         w.println("---");
         w.println();
-        w.println("*Relatório gerado automaticamente pelo Besu Permissioning Test Framework em " +
+        w.println("*Report automatically generated by Besu Permissioning Test Framework on " +
             TIME_FMT.format(Instant.now()) + "*");
     }
 

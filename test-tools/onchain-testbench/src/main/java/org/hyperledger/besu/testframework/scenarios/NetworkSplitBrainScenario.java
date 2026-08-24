@@ -10,9 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Simula uma partição de rede (split-brain) isolando validadores entre si
- * usando desconexão da rede Docker, e valida a interrupção do consenso QBFT
- * e o comportamento de segurança local do plugin.
+ * Simulates a network partition (split-brain) isolating validators from each other
+ * using Docker network disconnects, and validates QBFT consensus halt
+ * and local plugin security behavior.
  */
 public class NetworkSplitBrainScenario {
     private static final Logger LOG = LoggerFactory.getLogger(NetworkSplitBrainScenario.class);
@@ -22,117 +22,117 @@ public class NetworkSplitBrainScenario {
                                         List<BesuNode> remainingValidators,
                                         BesuNode rpcNode) {
         TestReporter report = new TestReporter(
-            "Partição de Rede (Split-Brain): Resiliência do Consenso QBFT",
-            "Simular uma partição de rede onde 2 dos 4 validadores são isolados, " +
-            "induzindo a perda de quórum do QBFT. Validar que: (1) o consenso para " +
-            "na partição minoritária, (2) o plugin mantém a segurança local, e " +
-            "(3) a rede se recupera quando a partição é curada."
+            "Network Partitioning (Split-Brain): QBFT Consensus Resilience",
+            "Simulate a network partition where 2 of 4 validators are isolated, " +
+            "inducing loss of QBFT quorum. Validate that: (1) consensus halts " +
+            "in the minority partition, (2) plugin maintains local security, and " +
+            "(3) network recovers when partition is healed."
         );
 
         report.metadata("Topologia", "QBFT com 4 validadores");
-        report.metadata("Tolerância a Falhas (f)", "1 (N = 3f+1 = 4, suporta até 1 falta)");
+        report.metadata("Fault Tolerance (f)", "1 (N = 3f+1 = 4, supports up to 1 fault)");
         report.metadata("Validadores Isolados", String.valueOf(isolatedValidators.size()));
         report.metadata("Validadores Restantes", String.valueOf(remainingValidators.size()));
-        report.metadata("Quórum mínimo", "3 de 4 validadores");
+        report.metadata("Minimum quorum", "3 of 4 validators");
 
-        // Passo 1: Verificar topologia inicial
+        // Step 1: Verify initial topology
         report.step(
-            "Verificar a topologia inicial da rede",
-            "A rede possui 4 validadores QBFT. Pela matemática de tolerância a falhas " +
-            "bizantinas, N ≥ 3f+1, com f=1 temos no mínimo 4 validadores. " +
-            "O quórum mínimo para produzir blocos é de 3 validadores."
+            "Verify initial network topology",
+            "Network has 4 QBFT validators. By Byzantine fault tolerance " +
+            "math, N >= 3f+1, with f=1 we have at least 4 validators. " +
+            "Minimum quorum to produce blocks is 3 validators."
         );
 
         List<String[]> topoTable = new ArrayList<>();
-        topoTable.add(new String[]{"Validador", "Tipo", "Status Inicial"});
+        topoTable.add(new String[]{"Validator", "Type", "Initial Status"});
         for (int i = 0; i < allValidators.size(); i++) {
             BesuNode v = allValidators.get(i);
             boolean isolated = isolatedValidators.contains(v);
             topoTable.add(new String[]{
                 v.getName(),
-                i == 0 ? "Bootnode" : "Validador",
-                isolated ? "Será isolado" : "Permanecerá conectado"
+                i == 0 ? "Bootnode" : "Validator",
+                isolated ? "Will be isolated" : "Will remain connected"
             });
         }
-        report.table("Topologia da Rede", topoTable);
+        report.table("Network Topology", topoTable);
 
         report.observation(
-            "Com 4 validadores e f=1, a rede tolera a falha de 1 validador. " +
-            "Ao isolar 2 validadores, a partição isolada terá apenas 2 validadores " +
-            "(quórum insuficiente), enquanto a partição principal terá 2 validadores " +
-            "(também insuficiente!). Isso causará uma parada completa do consenso."
+            "With 4 validators and f=1, network tolerates failure of 1 validator. " +
+            "By isolating 2 validators, isolated partition will have only 2 validators " +
+            "(insufficient quorum), while main partition will have 2 validators " +
+            "(also insufficient!). This will cause complete consensus halt."
         );
         report.stepPassed();
 
-        // Passo 2: Executar a partição
+        // Step 2: Execute partition
         report.step(
-            "Isolar 2 validadores da rede Docker",
-            "Usando comandos de rede Docker, desativamos a interface de rede dos " +
-            "validadores selecionados, simulando uma partição de rede (split-brain)."
+            "Isolate 2 validators from Docker network",
+            "Using Docker network commands, we disable the network interface of " +
+            "selected validators, simulating a network partition (split-brain)."
         );
 
         for (BesuNode node : isolatedValidators) {
-            report.code("Isolando " + node.getName(),
+            report.code("Isolating " + node.getName(),
                 "docker exec " + node.getContainerId() + " ip link set eth0 down");
         }
 
         try {
             isolateValidatorsInternal(isolatedValidators);
-            report.result("Validadores isolados",
+            report.result("Isolated validators",
                 isolatedValidators.stream().map(BesuNode::getName).reduce((a, b) -> a + ", " + b).orElse(""));
             report.stepPassed();
         } catch (Exception e) {
-            report.error("Erro ao isolar validadores", e);
-            report.stepFailed("Não foi possível isolar os validadores.");
+            report.error("Error isolating validators", e);
+            report.stepFailed("Could not isolate validators.");
         }
 
-        // Passo 3: Verificar parada do consenso
+        // Step 3: Verify consensus halt
         report.step(
-            "Verificar interrupção do consenso",
-            "Com apenas 2 validadores em cada partição, nenhum lado atinge o quórum " +
-            "mínimo de 3. A produção de blocos deve PARAR completamente."
+            "Verify consensus halt",
+            "With only 2 validators in each partition, neither side reaches quorum " +
+            "minimum of 3. Block production must HALT completely."
         );
 
-        report.code("Matemática do impasse",
-            "Partição A: 2 validadores → quórum = 2 < 3 → SEM consenso\n" +
-            "Partição B: 2 validadores → quórum = 2 < 3 → SEM consenso\n" +
-            "Conclusão: Rede completamente parada (deadlock)");
+        report.code("Deadlock math",
+            "Partition A: 2 validators -> quorum = 2 < 3 -> NO consensus\n" +
+            "Partition B: 2 validators -> quorum = 2 < 3 -> NO consensus\n" +
+            "Conclusion: Network completely halted (deadlock)");
 
         long blockBefore = 0;
         try {
             // Try to get block number - may fail if RPC node is isolated
             report.result("RPC Node Status",
-                rpcNode.getContainer().isRunning() ? "Rodando" : "Parado");
+                rpcNode.getContainer().isRunning() ? "Running" : "Stopped");
         } catch (Exception ignored) {}
 
         report.observation(
-            "Esta é uma situação crítica: com 2 partições de 2 validadores cada, " +
-            "NENHUMA das partições consegue produzir blocos. " +
+            "This is a critical situation: with 2 partitions of 2 validators each, " +
+            "NEITHER partition can produce blocks. " +
             "Isso demonstra a importância de ter N ≥ 4 para tolerar f=1 falha. " +
-            "Se a rede tivesse 5 validadores (f=1), a partição com 3 validadores " +
+            "If network had 5 validators (f=1), partition with 3 validators " +
             "continuaria produzindo blocos normalmente."
         );
         report.stepPassed();
 
-        // Passo 4: Segurança do plugin durante partição
+        // Step 4: Plugin security during partition
         report.step(
-            "Validar segurança do plugin durante a partição",
-            "Mesmo durante uma partição de rede, o plugin deve manter a segurança " +
-            "local. Transações recebidas devem continuar sendo validadas contra " +
-            "o estado local da blockchain (que está congelado durante a partição)."
+            "Validate plugin security during partition",
+            "Even during a network partition, plugin must maintain local " +
+            "security. Received transactions must continue to be validated against " +
+            "local blockchain state (which is frozen during partition)."
         );
 
         report.observation(
-            "O plugin de permissionamento opera no nível do nó individual, não no nível do consenso. " +
-            "Durante uma partição, cada nó continua aplicando as regras de permissionamento " +
-            "com base no último estado conhecido da blockchain. Isso garante que um nó " +
-            "isolado não comece a aceitar transações não-autorizadas."
+            "The permissioning plugin operates at individual node level, not consensus level. " +
+            "During a partition, each node continues applying permissioning rules " +
+            "based on last known blockchain state. This ensures an isolated " +
+            "node does not begin accepting unauthorized txs."
         );
         report.stepPassed();
 
-        // Passo 5: Curar a partição
+        // Step 5: Heal partition
         report.step(
-            "Curar a partição de rede",
+            "Heal network partition",
             "Reconectamos os validadores isolados à rede Docker, permitindo que " +
             "o consenso QBFT seja retomado."
         );
@@ -149,36 +149,36 @@ public class NetworkSplitBrainScenario {
             report.stepPassed();
         } catch (Exception e) {
             report.error("Erro ao reconectar validadores", e);
-            report.stepFailed("Não foi possível reconectar os validadores.");
+            report.stepFailed("Could not reconnect validators.");
         }
 
-        // Passo 6: Verificar recuperação
+        // Step 6: Verify recovery
         report.step(
-            "Verificar recuperação do consenso",
-            "Após a cura da partição, os 4 validadores voltam a se comunicar e " +
-            "o consenso QBFT deve ser retomado automaticamente, com a produção de " +
+            "Verify consensus recovery",
+            "After healing partition, 4 validators communicate again and " +
+            "QBFT consensus should resume automatically, resuming block " +
             "blocos voltando ao normal."
         );
 
-        report.result("Tempo de recuperação esperado", "2-3 epochs QBFT (~10-15 segundos)");
+        report.result("Expected recovery time", "2-3 QBFT epochs (~10-15 seconds)");
         report.observation(
-            "O QBFT possui um mecanismo de recuperação automática: quando os validadores " +
-            "voltam a se comunicar, eles detectam que estão atrasados e sincronizam os " +
-            "blocos pendentes. Nenhuma intervenção manual é necessária."
+            "QBFT possesses an automatic recovery mechanism: when validators " +
+            "re-establish communication, they detect lag and synchronize " +
+            "pending blocks. No manual intervention is needed."
         );
         report.stepPassed();
 
-        // Conclusão
+        // Conclusion
         report.conclusion(
-            "✅ Cenário de partição de rede validado: (1) O consenso para quando o quórum " +
-            "é perdido, (2) O plugin mantém segurança local durante a partição, " +
-            "(3) A rede se recupera automaticamente quando a partição é curada. " +
-            "Este teste demonstra a importância do dimensionamento correto do número " +
+            "✅ Network partition scenario validated: (1) Consensus halts when quorum " +
+            "is lost, (2) Plugin maintains local security during partition, " +
+            "(3) Network automatically recovers when partition is healed. " +
+            "This test demonstrates the importance of correctly sizing validator " +
             "de validadores (N ≥ 3f+1) para tolerância a falhas."
         );
 
         report.generateMarkdown();
-        LOG.info("Relatório de Split-Brain gerado.");
+        LOG.info("Split-Brain report generated.");
         return report;
     }
 

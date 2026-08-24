@@ -11,9 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Valida upgrades de governança a quente (hot-swap): deploy de novos contratos
- * Rules, atualização do registro Ingress, e verificação de que o plugin adota
- * as novas regras em até 1 bloco sem reinicialização dos nós.
+ * Validates hot-swap governance upgrades: deployment of new
+ * Rules contracts, Ingress registry update, and verification that the plugin adopts
+ * new rules within 1 block without node restarts.
  */
 public class GovernanceUpgradeScenario {
     private static final Logger LOG = LoggerFactory.getLogger(GovernanceUpgradeScenario.class);
@@ -24,13 +24,13 @@ public class GovernanceUpgradeScenario {
                                         String newRulesAddress,
                                         int blockTimeSeconds) {
         TestReporter report = new TestReporter(
-            "Upgrade de Governança a Quente (Hot-Swap)",
-            "Validar que é possível atualizar as regras de permissionamento da rede " +
-            "sem reinicializar os nós. O deploy de um novo contrato Rules e a atualização " +
-            "do Ingress devem ser refletidos em até 1 bloco em todos os validadores."
+            "Hot-Swap Governance Upgrade",
+            "Validate that network permissioning rules can be updated " +
+            "without restarting nodes. Deploying a new Rules contract and updating " +
+            "the Ingress must reflect across all validators within 1 block."
         );
 
-        report.metadata("Endereço Ingress", ingressAddress);
+        report.metadata("Ingress Address", ingressAddress);
         report.metadata("Rules Antigo (v1)", oldRulesAddress);
         report.metadata("Rules Novo (v2)", newRulesAddress);
         report.metadata("Tempo de Bloco (s)", String.valueOf(blockTimeSeconds));
@@ -38,7 +38,7 @@ public class GovernanceUpgradeScenario {
         // Passo 1: Contexto
         report.step(
             "Entender a arquitetura de upgrade",
-            "O padrão Ingress desacopla o ponto de entrada (Ingress) da lógica de negócio " +
+            "The Ingress pattern decouples entry point (Ingress) from business logic " +
             "(Rules). O plugin sempre consulta o Ingress, que por sua vez referencia o " +
             "contrato Rules atual. Para fazer um upgrade, basta: (1) deploy do novo Rules, " +
             "(2) atualizar o registro no Ingress."
@@ -55,17 +55,17 @@ public class GovernanceUpgradeScenario {
 
         report.observation(
             "O Ingress age como um 'service locator'. O plugin nunca referencia " +
-            "diretamente o contrato Rules; ele pergunta ao Ingress qual é o endereço " +
-            "atual. Isso permite trocar as Rules sem alterar a configuração dos nós."
+            "directly the Rules contract; it queries Ingress for the current " +
+            "address. This enables updating Rules without changing node config."
         );
         report.stepPassed();
 
         // Passo 2: Deploy das novas regras
         report.step(
             "Deploy do novo contrato Rules (v2)",
-            "Uma transação administrativa faz o deploy do novo contrato Rules com as " +
-            "regras atualizadas. Neste momento, a rede ainda está usando as regras antigas, " +
-            "pois o Ingress ainda não foi atualizado."
+            "An administrative transaction deploys the new Rules contract with " +
+            "updated rules. At this moment, network still uses old rules, " +
+            "because Ingress has not yet been updated."
         );
 
         report.code("Deploy do novo Rules",
@@ -74,83 +74,83 @@ public class GovernanceUpgradeScenario {
             "String newRulesAddress = rulesV2.getContractAddress();\n" +
             "// Neste momento: Ingress ainda aponta para Rules v1");
 
-        report.result("Endereço do novo Rules", newRulesAddress);
+        report.result("New Rules Address", newRulesAddress);
         report.observation(
-            "Enquanto o Ingress não for atualizado, os nós continuam usando as regras " +
-            "antigas. Isso permite um período de validação das novas regras antes da troca."
+            "Until Ingress is updated, nodes continue using old rules. " +
+            "This allows a validation window for new rules prior to cutover."
         );
         report.stepPassed();
 
         // Passo 3: Atualizar o Ingress
         report.step(
             "Atualizar o registro no Ingress",
-            "A transação de governança chama setContractAddress('rules', newRulesAddress) " +
-            "no Ingress. A partir do próximo bloco, o cache do plugin expira e ele " +
-            "descobre o novo endereço."
+            "Governance transaction invokes setContractAddress('rules', newRulesAddress) " +
+            "on Ingress. From next block onward, plugin cache expires and " +
+            "discovers the new address."
         );
 
-        report.code("Atualização do Ingress",
+        report.code("Ingress Update",
             "// Chamada administrativa:\n" +
             "ingress.setContractAddress(\"rules\", \"" + newRulesAddress + "\").send();\n" +
-            "// Após 1 bloco: plugin descobre o novo endereço automaticamente");
+            "// After 1 block: plugin automatically discovers new address");
 
         report.result("Chave", "rules");
         report.result("Valor antigo", oldRulesAddress);
         report.result("Valor novo", newRulesAddress);
         report.stepPassed();
 
-        // Passo 4: Verificar transição atômica
+        // Step 4: Verify atomic transition
         report.step(
-            "Verificar a transição atômica das regras",
-            "Validar que a troca de regras é efetiva em no máximo 1 bloco e que " +
-            "não há período de inconsistência onde algumas transações usam regras " +
+            "Verify atomic rules transition",
+            "Validate that rules cutover takes effect in at most 1 block and " +
+            "there is no inconsistency period where some txs use rules " +
             "antigas e outras usam regras novas."
         );
 
-        // Matriz de transição
+        // Transition matrix
         List<String[]> transitionTable = new ArrayList<>();
         transitionTable.add(new String[]{"Timeline", "Bloco N-1", "Bloco N (update)", "Bloco N+1", "Bloco N+2"});
         transitionTable.add(new String[]{"Ingress aponta para", "Rules v1", "Rules v1 → v2", "Rules v2", "Rules v2"});
         transitionTable.add(new String[]{"Cache do plugin", "Rules v1", "Rules v1 (stale)", "Rules v2 (refresh)", "Rules v2"});
-        transitionTable.add(new String[]{"Transações validadas por", "v1", "v1", "v2", "v2"});
-        transitionTable.add(new String[]{"Nós reiniciados?", "Não", "Não", "Não", "Não"});
+        transitionTable.add(new String[]{"Transactions validated by", "v1", "v1", "v2", "v2"});
+        transitionTable.add(new String[]{"Nodes restarted?", "No", "No", "No", "No"});
 
-        report.table("Matriz de Transição Atômica", transitionTable);
+        report.table("Atomic Transition Matrix", transitionTable);
 
         report.observation(
-            "A transição é efetivamente atômica do ponto de vista do bloco: " +
-            "todas as transações no bloco N são validadas pelas regras v1, " +
-            "e todas as transações no bloco N+1 são validadas pelas regras v2. " +
-            "Não há bloco onde as regras estejam inconsistentes."
+            "Transition is atomic from block standpoint: " +
+            "all transactions in block N are validated by v1 rules, " +
+            "and all transactions in block N+1 are validated by v2 rules. " +
+            "There is no block with inconsistent rules."
         );
         report.stepPassed();
 
-        // Passo 5: Verificar que não houve reinicialização
+        // Step 5: Verify no node restart occurred
         report.step(
-            "Confirmar que nenhum nó foi reiniciado",
-            "Um dos principais benefícios do padrão Ingress + cache é que " +
-            "upgrades de governança não exigem reinicialização dos nós validadores. " +
-            "Isso elimina downtime e mantém a rede operando continuamente."
+            "Confirm no node was restarted",
+            "A key benefit of the Ingress + cache pattern is that " +
+            "governance upgrades do not require restarting validator nodes. " +
+            "This eliminates downtime and maintains continuous network operation."
         );
 
         report.observation(
             "Zero downtime durante o upgrade: os validadores continuam produzindo " +
-            "blocos normalmente durante todo o processo. A única mudança percebida " +
-            "é que, a partir do bloco N+1, as novas regras passam a valer."
+            "blocks normally throughout the process. Only perceived change " +
+            "is that from block N+1, new rules become active."
         );
         report.stepPassed();
 
-        // Conclusão
+        // Conclusion
         report.conclusion(
-            "✅ Upgrade de governança a quente validado: o padrão Ingress permite " +
-            "trocar as regras de permissionamento sem reinicialização dos nós. " +
-            "A transição ocorre em no máximo 1 bloco e é atômica. " +
-            "Este mecanismo é essencial para redes permissionadas que precisam " +
+            "✅ Hot-swap governance upgrade validated: Ingress pattern allows " +
+            "swapping permissioning rules without node restarts. " +
+            "Transition occurs in at most 1 block and is atomic. " +
+            "This mechanism is essential for permissioned networks requiring " +
             "de alta disponibilidade (ex: 24x7 do mercado financeiro)."
         );
 
         report.generateMarkdown();
-        LOG.info("Relatório de Upgrade de Governança gerado.");
+        LOG.info("Governance Upgrade report generated.");
         return report;
     }
 }

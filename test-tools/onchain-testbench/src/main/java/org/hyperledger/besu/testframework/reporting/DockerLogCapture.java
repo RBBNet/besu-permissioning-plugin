@@ -40,7 +40,7 @@ import java.util.function.Consumer;
  * Path dir = DockerLogCapture.captureAll(orchestrator, "smoke-test");
  * }</pre>
  *
- * Output: {@code docs/relatorios/docker-logs/<testId>/<containerName>.log}
+ * Output: {@code docs/reports/docker-logs/<testId>/<containerName>.log}
  */
 public class DockerLogCapture implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DockerLogCapture.class);
@@ -73,10 +73,10 @@ public class DockerLogCapture implements AutoCloseable {
     }
 
     /**
-     * Starts streaming with default base directory ({@code docs/relatorios}).
+     * Starts streaming with default base directory ({@code docs/reports}).
      */
     public static DockerLogCapture start(String testId) {
-        return start(testId, Paths.get("docs/relatorios"));
+        return start(testId, Paths.get("docs/reports"));
     }
 
     /**
@@ -238,7 +238,7 @@ public class DockerLogCapture implements AutoCloseable {
     }
 
     public static Path captureAll(NetworkOrchestrator orchestrator, String testId) {
-        return captureAll(orchestrator, testId, Paths.get("docs/relatorios"));
+        return captureAll(orchestrator, testId, Paths.get("docs/reports"));
     }
 
     private static void writeSnapshot(Path file, String containerName, String content) throws IOException {

@@ -15,11 +15,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Validates the JIRA Acceptance Criterion 1:
+ * Validates Acceptance Criterion 1 (Fail-Close on Communication Failure):
  * <blockquote>
- * Dado que um usuário envia uma transação
- * Quando o componente tentar ler as regras e ocorrer uma falha técnica de comunicação
- * Então o componente deve bloquear a transação por segurança, impedindo acessos não validados.
+ * When technical communication issues or timeouts occur during rule evaluation,
+ * the plugin MUST block the transaction to enforce fail-closed security.
  * </blockquote>
  *
  * <h3>Test Flow</h3>
@@ -54,16 +53,16 @@ public class FailCloseTimeoutScenario {
                                         String authorizedAddress, String unauthorizedAddress) {
         TestReporter report = new TestReporter(
             "Fail-Close on Communication Failure (Timeout Scenario)",
-            "Validar que quando o plugin não consegue comunicar com os contratos de governança " +
-            "(ex: Ingress inacessível por pausa do container), ele adota postura Fail-Close " +
-            "e bloqueia TODAS as transações por segurança. Critério de Aceite JIRA #1."
+            "Validate that when the plugin cannot communicate with governance contracts " +
+            "(e.g., Ingress unreachable), it enters Fail-Close state " +
+            "and blocks transactions to enforce security."
         );
 
-        report.metadata("Cenário JIRA", "Cenário 1: Postura preventiva em caso de falha (Fail-safe)");
+        report.metadata("Scenario", "Scenario 1: Fail-Close on Communication Failure");
         report.metadata("Validador", securedValidator.getName());
         report.metadata("RPC Node", rpcNode.getName());
         report.metadata("Conta Autorizada", authorizedAddress);
-        report.metadata("Conta NÃO Autorizada", unauthorizedAddress);
+        report.metadata("UNAUTHORIZED Account", unauthorizedAddress);
 
         String containerName = securedValidator.getContainer().getContainerName();
         // Strip leading "/" from Docker container name
@@ -76,57 +75,58 @@ public class FailCloseTimeoutScenario {
 
         // Step 1: Verify baseline — authorized tx works before pausing
         report.step(
-            "Verificar baseline: transação autorizada funciona antes da pausa",
-            "Antes de simular a falha de comunicação, confirmamos que o plugin está " +
-            "operando normalmente e permite transações de contas autorizadas."
+            "Verify baseline: authorized transaction works prior to pause",
+            "Before simulating communication failure, we confirm that the plugin is " +
+            "operando normalmente e permite transactions de contas autorizadas."
         );
-        report.result("Endereço autorizado", authorizedAddress);
+        report.result("Authorized address", authorizedAddress);
         report.observation(
-            "Este passo estabelece a linha de base: o plugin está ativo, os contratos " +
-            "estão acessíveis, e transações autorizadas fluem normalmente."
+            "This step establishes the baseline: plugin is active, contracts " +
+            "are accessible, and authorized transactions flow normally."
         );
         report.stepPassed();
 
         // Step 2: Pause the validator container (simulates Ingress unavailability)
         report.step(
-            "Simular falha de comunicação: pausar container do validador",
+            "Simulate communication failure: pause validator container",
             "Usando 'docker pause " + effectiveName + "', congelamos todos os processos " +
-            "do container. Isso simula uma falha total de comunicação onde o plugin " +
-            "não consegue ler as regras de governança (Ingress/Rules inacessíveis)."
+            "of container. This simulates complete communication failure where plugin " +
+            "cannot read governance rules (Ingress/Rules inaccessible)."
         );
 
-        report.code("Comando de simulação de falha",
+        report.code("Failure simulation command",
             "docker pause " + effectiveName + "\n" +
-            "// O plugin tentará chamar simulate() no Ingress\n" +
-            "// → O container está pausado → sem resposta\n" +
+            "// Plugin will attempt to call simulate() on Ingress
+" +
+            "// -> Container is paused -> no response
+" +
             "// → O plugin DEVE retornar false (Fail-Close)");
 
         boolean paused = pauseContainer(effectiveName);
         report.result("Container pausado", String.valueOf(paused));
 
         if (!paused) {
-            report.stepFailed("Não foi possível pausar o container " + effectiveName);
-            report.conclusion("❌ Falha ao simular falha de comunicação.");
+            report.stepFailed("Could not pause container " + effectiveName);
+            report.conclusion("❌ Failed to simulate communication failure.");
             report.generateMarkdown();
             return report;
         }
 
         // Verify pause
         String pauseStatus = containerStatus(effectiveName);
-        report.result("Status pós-pause", pauseStatus);
+        report.result("Post-pause status", pauseStatus);
         report.observation(
-            "Container em estado 'paused': todos os processos congelados. " +
-            "O plugin não consegue executar simulate() contra o Ingress. " +
-            "Este é exatamente o cenário de 'falha técnica de comunicação' do JIRA."
+            "Container in 'paused' state: all processes frozen. " +
+            "Plugin cannot execute simulate() against Ingress, triggering communication failure."
         );
         report.stepPassed();
 
         // Step 3: Attempt tx while container is paused → must be blocked
         report.step(
-            "Tentar transação com container pausado → plugin deve bloquear",
-            "Enquanto o container está pausado, qualquer tentativa de transação " +
-            "deve ser bloqueada pelo plugin por timeout ou falha de comunicação. " +
-            "O plugin NUNCA deve liberar tráfego sem confirmação das regras."
+            "Attempt transaction with paused container -> plugin must block",
+            "While container is paused, any transaction attempt " +
+            "must be blocked by plugin due to timeout or communication failure. " +
+            "Plugin must NEVER release traffic without rules confirmation."
         );
 
         Instant beforeAttempt = Instant.now();
@@ -157,50 +157,49 @@ public class FailCloseTimeoutScenario {
 
             if (hasTxPoolRejection) {
                 wasBlocked = true;
-                blockReason = "Logs do RPC mostram rejeição de transação (txpool/plugin)";
+                blockReason = "RPC logs show transaction rejection (txpool/plugin)";
             }
 
         } catch (Exception e) {
             LOG.warn("Error checking RPC logs: {}", e.getMessage());
             wasBlocked = true; // Assume blocked if we can't check (conservative)
-            blockReason = "Erro ao verificar logs (assumindo bloqueio por segurança)";
+            blockReason = "Error checking logs (assuming blocked for security)";
         }
 
         Instant afterAttempt = Instant.now();
         Duration decisionLatency = Duration.between(beforeAttempt, afterAttempt);
 
-        report.result("Transação bloqueada", String.valueOf(wasBlocked));
+        report.result("Blocked transaction", String.valueOf(wasBlocked));
         report.result("Motivo do bloqueio", blockReason);
-        report.result("Latência da decisão", formatDuration(decisionLatency));
+        report.result("Decision latency", formatDuration(decisionLatency));
 
         if (wasBlocked && decisionLatency.compareTo(MAX_FAIL_CLOSE_LATENCY) <= 0) {
             report.observation(
-                "✅ O plugin bloqueou a transação em " + formatDuration(decisionLatency) + ", " +
-                "dentro do limite máximo de " + formatDuration(MAX_FAIL_CLOSE_LATENCY) + ". " +
-                "Isso comprova que, na dúvida, o plugin BLOQUEIA (Fail-Close), " +
-                "atendendo ao Critério de Aceite 1 do JIRA."
+                "✅ The plugin blocked transaction in " + formatDuration(decisionLatency) + ", " +
+                "within maximum threshold of " + formatDuration(MAX_FAIL_CLOSE_LATENCY) + ". " +
+                "Proves Fail-Close security behavior under communication failure."
             );
             report.stepPassed();
         } else if (wasBlocked) {
             report.observation(
-                "⚠️ O plugin bloqueou a transação, mas a latência (" +
+                "⚠️ Plugin blocked transaction, but latency (" +
                 formatDuration(decisionLatency) + ") excedeu o limite de " +
                 formatDuration(MAX_FAIL_CLOSE_LATENCY) + ". Verificar timeout configurado."
             );
             report.stepPassed(); // Still passed because fail-close worked
         } else {
             report.stepFailed(
-                "❌ O plugin NÃO bloqueou a transação durante a falha de comunicação! " +
-                "Isso viola o princípio de segurança Fail-Close. " +
-                "Risco: acessos não validados podem ser liberados."
+                "❌ Plugin DID NOT block transaction during communication failure! " +
+                "This violates Fail-Close security principles. " +
+                "Risk: unvalidated access could be allowed."
             );
         }
 
         // Step 4: Unpause and verify recovery
         report.step(
-            "Recuperação: despausar container e verificar retomada",
-            "Após restaurar a comunicação, o plugin deve voltar a operar normalmente, " +
-            "permitindo transações autorizadas e bloqueando não-autorizadas."
+            "Recovery: unpause container and verify resumption",
+            "After restoring communication, plugin must return to normal operations, " +
+            "allowing authorized transactions and blocking unauthorized ones."
         );
 
         boolean unpaused = unpauseContainer(effectiveName);
@@ -211,7 +210,7 @@ public class FailCloseTimeoutScenario {
             try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
 
             String postRecoveryStatus = containerStatus(effectiveName);
-            report.result("Status pós-recuperação", postRecoveryStatus);
+            report.result("Post-recovery status", postRecoveryStatus);
 
             // Check that plugin is back online
             String recoveryLogs = securedValidator.getLogs();
@@ -222,14 +221,14 @@ public class FailCloseTimeoutScenario {
 
             if (pluginRecovered) {
                 report.observation(
-                    "Após a recuperação da comunicação, o plugin voltou a operar. " +
-                    "Isso demonstra que o Fail-Close é um mecanismo de proteção temporário: " +
-                    "bloqueia durante a falha, mas permite operação normal após recuperação."
+                    "After communication recovery, plugin resumed operation. " +
+                    "This demonstrates that Fail-Close is a temporary protection mechanism: " +
+                    "blocks during failure, allows normal operation after recovery."
                 );
                 report.stepPassed();
             } else {
                 report.observation(
-                    "⚠️ O container foi despausado mas o plugin pode não ter recuperado " +
+                    "⚠️ Container unpaused but plugin may not have recovered " +
                     "totalmente. Verificar logs para confirmar retomada."
                 );
                 report.stepPassed();
@@ -240,9 +239,9 @@ public class FailCloseTimeoutScenario {
 
         // Step 5: Validate metrics (if available)
         report.step(
-            "Validar métricas de segurança",
-            "Verificar se as métricas do plugin registram corretamente as negações " +
-            "durante o período de falha de comunicação."
+            "Validate security metrics",
+            "Verify that plugin metrics correctly record denials " +
+            "during communication failure period."
         );
 
         String pluginLogs = securedValidator.getPluginLogs();
@@ -250,21 +249,21 @@ public class FailCloseTimeoutScenario {
         int failCloseCount = countOccurrences(pluginLogs, "FAIL-CLOSE");
         int criticalCount = countOccurrences(pluginLogs, "CRITICAL");
 
-        report.result("Ocorrências de DENIED nos logs", String.valueOf(denyCount));
-        report.result("Ocorrências de FAIL-CLOSE nos logs", String.valueOf(failCloseCount));
-        report.result("Ocorrências de CRITICAL nos logs", String.valueOf(criticalCount));
+        report.result("DENIED occurrences in logs", String.valueOf(denyCount));
+        report.result("FAIL-CLOSE occurrences in logs", String.valueOf(failCloseCount));
+        report.result("CRITICAL occurrences in logs", String.valueOf(criticalCount));
 
         boolean hasSecurityMarkers = denyCount > 0 || failCloseCount > 0 || criticalCount > 0;
         if (hasSecurityMarkers) {
             report.observation(
-                "Logs do plugin contêm marcadores de segurança (DENIED/FAIL-CLOSE/CRITICAL), " +
+                "Plugin logs contain security markers (DENIED/FAIL-CLOSE/CRITICAL), " +
                 "comprovando que o comportamento fail-close foi registrado."
             );
             report.stepPassed();
         } else {
             report.observation(
-                "Marcadores de segurança não encontrados nos logs. " +
-                "Possível que o bloqueio tenha ocorrido em camada inferior (RPC/TxPool)."
+                "Security markers not found in logs. " +
+                "Block may have occurred at a lower layer (RPC/TxPool)."
             );
             report.stepPassed();
         }
@@ -273,16 +272,16 @@ public class FailCloseTimeoutScenario {
         boolean scenarioPassed = wasBlocked && unpaused;
         report.conclusion(
             scenarioPassed
-                ? "✅ Critério de Aceite JIRA #1 ATENDIDO: Durante falha de comunicação " +
-                  "(container pausado), o plugin adotou postura Fail-Close e bloqueou " +
-                  "transações por segurança. Após recuperação, operação normal retomada. " +
-                  "Latência da decisão: " + formatDuration(decisionLatency) + "."
-                : "❌ Falha no cenário: verificar logs para diagnóstico. " +
-                  "Bloqueado=" + wasBlocked + ", Recuperado=" + unpaused
+                ? "✅ Acceptance Criterion #1 SATISFIED: During communication failure " +
+                  "(paused container), the plugin enforced Fail-Close posture and blocked " +
+                  "transactions safely. Normal operation resumed upon recovery. " +
+                  "Decision latency: " + formatDuration(decisionLatency) + "."
+                : "❌ Scenario failure: inspect logs for diagnostics. " +
+                  "Blocked=" + wasBlocked + ", Recovered=" + unpaused
         );
 
         String reportPath = report.generateMarkdown();
-        LOG.info("Relatório Fail-Close Timeout gerado em: {}", reportPath);
+        LOG.info("Fail-Close Timeout report generated at: {}", reportPath);
         return report;
     }
 

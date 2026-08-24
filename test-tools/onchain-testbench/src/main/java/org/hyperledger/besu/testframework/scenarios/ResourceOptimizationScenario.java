@@ -14,10 +14,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Validates the JIRA Acceptance Criterion 2:
+ * Validates Acceptance Criterion 2 (Resource Stability Under Load):
  * <blockquote>
- * O código deve ser eficiente, garantindo que não ocorra acúmulo de processamento
- * ou uso contínuo de memória que degrade a máquina com o tempo.
+ * The plugin must execute efficiently without memory leaks or CPU degradation
+ * under sustained transaction throughput.
  * </blockquote>
  *
  * <h3>Test Flow</h3>
@@ -66,24 +66,24 @@ public class ResourceOptimizationScenario {
     public static TestReporter execute(BesuNode rpcNode, List<BesuNode> allNodes) {
         TestReporter report = new TestReporter(
             "Resource Optimization: No Memory Leak Under Load",
-            "Validar que o plugin e a rede não acumulam processamento ou memória " +
-            "de forma contínua durante rajadas de transações. Critério de Aceite JIRA #2."
+            "Validate that the plugin and node infrastructure do not leak memory or CPU " +
+            "during high transaction throughput bursts."
         );
 
-        report.metadata("Cenário JIRA", "Otimização de Recursos");
-        report.metadata("Transações na Rajada", String.valueOf(TX_BURST_COUNT));
-        report.metadata("Número de Containers", String.valueOf(allNodes.size()));
+        report.metadata("Scenario", "Resource Optimization");
+        report.metadata("Burst Transactions", String.valueOf(TX_BURST_COUNT));
+        report.metadata("Number of Containers", String.valueOf(allNodes.size()));
 
         // Step 1: Capture baseline
         report.step(
-            "Capturar métricas baseline de recursos",
-            "Coletamos uso de CPU e memória de todos os containers ANTES da rajada " +
-            "de transações para estabelecer a linha de base."
+            "Capture baseline resource metrics",
+            "We collect CPU and memory utilization across all containers BEFORE the burst " +
+            "of transactions to establish a baseline."
         );
 
         List<ResourceSnapshot> baseline = captureResourceSnapshots(allNodes);
         List<String[]> baselineTable = new ArrayList<>();
-        baselineTable.add(new String[]{"Container", "CPU %", "Memória"});
+        baselineTable.add(new String[]{"Container", "CPU %", "Memory"});
         for (ResourceSnapshot snap : baseline) {
             baselineTable.add(new String[]{
                 snap.containerName,
@@ -91,18 +91,18 @@ public class ResourceOptimizationScenario {
                 snap.memoryHuman
             });
         }
-        report.table("Baseline de Recursos (pré-rajada)", baselineTable);
+        report.table("Resource Baseline (pre-burst)", baselineTable);
 
         long totalBaselineMem = baseline.stream().mapToLong(s -> s.memoryBytes).sum();
-        report.result("Memória total baseline", formatBytes(totalBaselineMem));
+        report.result("Total baseline memory", formatBytes(totalBaselineMem));
         report.stepPassed();
 
         // Step 2: Dispatch burst
         report.step(
-            "Disparar rajada de " + TX_BURST_COUNT + " transações",
-            "Transações enviadas em sequência controlada para o nó RPC. " +
-            "Isso força o plugin a processar múltiplas validações, " +
-            "exercitando o cache de 1 bloco e os caminhos de simulação."
+            "Trigger burst of " + TX_BURST_COUNT + " transactions",
+            "Transactions sent in controlled sequence to the RPC node. " +
+            "This forces the plugin to process multiple validations, " +
+            "exercising the 1-block cache and simulation code paths."
         );
 
         Instant burstStart = Instant.now();
@@ -138,9 +138,9 @@ public class ResourceOptimizationScenario {
         Instant burstEnd = Instant.now();
         Duration burstDuration = Duration.between(burstStart, burstEnd);
 
-        report.result("Transações enviadas", String.valueOf(sent));
+        report.result("Sent transactions", String.valueOf(sent));
         report.result("Erros durante rajada", String.valueOf(errors));
-        report.result("Duração da rajada", formatDuration(burstDuration));
+        report.result("Burst duration", formatDuration(burstDuration));
         report.result("Taxa efetiva", String.format("%.1f tx/s", sent * 1000.0 / Math.max(1, burstDuration.toMillis())));
 
         if (!errorSamples.isEmpty()) {
@@ -149,16 +149,16 @@ public class ResourceOptimizationScenario {
 
         report.observation(
             "Rajada de " + sent + " chamadas RPC em " + formatDuration(burstDuration) + ". " +
-            "Cada chamada força o plugin a acessar blockchainService.getChainHeadHeader() " +
-            "e potencialmente simular contra o Ingress, exercitando o caminho crítico."
+            "Each call forces the plugin to access blockchainService.getChainHeadHeader() " +
+            "and potentially simulate against Ingress, exercising the critical path."
         );
         report.stepPassed();
 
         // Step 3: Post-burst metrics
         report.step(
-            "Capturar métricas pós-rajada e comparar",
-            "Comparamos o uso de recursos após a rajada com a baseline para detectar " +
-            "crescimento anormal de memória (possível leak) ou acúmulo de CPU."
+            "Capture post-burst metrics and compare",
+            "We compare post-burst resource usage against baseline to detect " +
+            "abnormal memory growth (potential leak) or CPU accumulation."
         );
 
         // Wait a moment for any pending operations to settle
@@ -166,7 +166,7 @@ public class ResourceOptimizationScenario {
 
         List<ResourceSnapshot> postBurst = captureResourceSnapshots(allNodes);
         List<String[]> comparisonTable = new ArrayList<>();
-        comparisonTable.add(new String[]{"Container", "Memória Antes", "Memória Depois", "Δ", "Status"});
+        comparisonTable.add(new String[]{"Container", "Memory Before", "Memory After", "Δ", "Status"});
 
         boolean memoryStable = true;
         long maxGrowth = 0;
@@ -181,7 +181,7 @@ public class ResourceOptimizationScenario {
             if (delta < 0) {
                 status = "✅ Reduziu";
             } else if (delta < 10 * 1024 * 1024) { // < 10 MB
-                status = "✅ Estável";
+                status = "✅ Stable";
             } else if (delta < MAX_MEMORY_GROWTH_BYTES) {
                 status = "⚠️ Cresceu " + formatBytes(delta);
             } else {
@@ -202,33 +202,33 @@ public class ResourceOptimizationScenario {
                 status
             });
         }
-        report.table("Comparação de Memória (antes vs depois)", comparisonTable);
+        report.table("Memory Comparison (before vs after)", comparisonTable);
 
         long totalPostMem = postBurst.stream().mapToLong(s -> s.memoryBytes).sum();
         long totalDelta = totalPostMem - totalBaselineMem;
 
-        report.result("Δ Memória total", (totalDelta >= 0 ? "+" : "") + formatBytes(totalDelta));
+        report.result("Total Δ Memory", (totalDelta >= 0 ? "+" : "") + formatBytes(totalDelta));
         report.result("Maior crescimento", maxGrowthContainer + " (" + formatBytes(maxGrowth) + ")");
 
         if (memoryStable) {
             report.observation(
-                "✅ Memória estável após rajada de " + TX_BURST_COUNT + " transações. " +
+                "✅ Memory stable after burst of " + TX_BURST_COUNT + " transactions. " +
                 "Crescimento total: " + formatBytes(totalDelta) + ". " +
-                "Nenhum indício de memory leak detectado."
+                "No indication of memory leak detected."
             );
             report.stepPassed();
         } else {
             report.stepFailed(
-                "❌ Crescimento anormal de memória detectado em " + maxGrowthContainer +
-                " (" + formatBytes(maxGrowth) + "). Possível memory leak."
+                "❌ Abnormal memory growth detected in " + maxGrowthContainer +
+                " (" + formatBytes(maxGrowth) + "). Potential memory leak."
             );
         }
 
         // Step 4: Plugin efficiency (cache hits)
         report.step(
-            "Verificar eficiência do cache de 1 bloco do plugin",
-            "O plugin mantém cache do endereço do Rules contract por bloco. " +
-            "Múltiplas transações no mesmo bloco devem usar o cache, " +
+            "Verify plugin 1-block cache efficiency",
+            "The plugin maintains a cache of the Rules contract address per block. " +
+            "Multiple transactions in the same block should use cache, " +
             "evitando chamadas repetidas ao Ingress."
         );
 
@@ -246,12 +246,12 @@ public class ResourceOptimizationScenario {
                     .append("\n");
             } catch (Exception ignored) {}
         }
-        report.result("Resoluções de Ingress por nó", efficiencyLog.toString().trim());
+        report.result("Ingress resolutions per node", efficiencyLog.toString().trim());
 
         report.observation(
-            "O cache de 1 bloco é fundamental para eficiência: sem ele, cada transação " +
+            "The 1-block cache is critical for efficiency: without it, every transaction " +
             "geraria uma chamada simulate() ao Ingress. Com cache, apenas 1 chamada " +
-            "por bloco é necessária para resolver o endereço do Rules contract."
+            "in a block would need to resolve the Rules contract address."
         );
 
         // Check validator process count (should be stable)
@@ -260,7 +260,7 @@ public class ResourceOptimizationScenario {
             "if (currentBlock > lastCacheUpdateBlock || cache.get() == null) {\n" +
             "    // resolve do Ingress (1 vez por bloco)\n" +
             "} else {\n" +
-            "    // usa cache (N-1 transações economizadas)\n" +
+            "    // usa cache (N-1 transactions economizadas)\n" +
             "}"
         );
         report.stepPassed();
@@ -269,17 +269,17 @@ public class ResourceOptimizationScenario {
         boolean scenarioPassed = memoryStable;
         report.conclusion(
             scenarioPassed
-                ? "✅ Critério de Aceite JIRA #2 ATENDIDO: Recursos estáveis após rajada de " +
-                  TX_BURST_COUNT + " transações. Memória total: " +
+                ? "✅ Acceptance Criterion #2 SATISFIED: Resources stable after burst of " +
+                  TX_BURST_COUNT + " transactions. Total memory: " +
                   formatBytes(totalBaselineMem) + " → " + formatBytes(totalPostMem) +
                   " (Δ=" + formatBytes(totalDelta) + "). " +
-                  "Cache de 1 bloco mantém eficiência, evitando chamadas repetidas ao Ingress."
-                : "❌ Instabilidade de recursos detectada. Verificar " + maxGrowthContainer +
-                  " (crescimento de " + formatBytes(maxGrowth) + ")."
+                  "1-block caching maintains efficiency, preventing redundant Ingress queries."
+                : "❌ Resource instability detected. Inspect container " + maxGrowthContainer +
+                  " (memory growth: " + formatBytes(maxGrowth) + ")."
         );
 
         String reportPath = report.generateMarkdown();
-        LOG.info("Relatório Resource Optimization gerado em: {}", reportPath);
+        LOG.info("Resource Optimization report generated at: {}", reportPath);
         return report;
     }
 

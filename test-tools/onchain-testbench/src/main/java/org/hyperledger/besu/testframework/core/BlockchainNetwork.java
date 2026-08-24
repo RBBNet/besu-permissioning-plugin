@@ -230,7 +230,7 @@ public class BlockchainNetwork implements AutoCloseable {
 
         /**
          * Enables real-time streaming Docker log capture.
-         * Logs are written continuously to {@code docs/relatorios/docker-logs/<testId>/}
+         * Logs are written continuously to {@code docs/reports/docker-logs/<testId>/}
          * from the moment each container starts until shutdown.
          */
         public Builder withLogCapture(String testId) {
