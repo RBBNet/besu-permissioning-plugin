@@ -73,8 +73,20 @@ public class PermissioningPlugin implements BesuPlugin {
     LOG.info("Registering On-Chain Permissioning Plugin");
     this.serviceManager = context;
 
-    this.simulationService = context.getService(TransactionSimulationService.class).orElseThrow();
-    this.blockchainService = context.getService(BlockchainService.class).orElseThrow();
+    this.simulationService =
+        context
+            .getService(TransactionSimulationService.class)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "TransactionSimulationService is required but not available from Besu service context."));
+    this.blockchainService =
+        context
+            .getService(BlockchainService.class)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "BlockchainService is required but not available from Besu service context."));
 
     configureFromEnvironment();
 
@@ -343,10 +355,13 @@ public class PermissioningPlugin implements BesuPlugin {
             } else {
               LOG.error(
                   "Account Ingress returned malformed address data ({} bytes).", bytes.size());
+              accountRulesContractCache.set(Address.ZERO);
+              lastAccountCacheUpdateBlock = currentBlock;
             }
           } else {
-            LOG.error("Simulation to Account Ingress failed — caching null address.");
-            accountRulesContractCache.set(null);
+            LOG.error("Simulation to Account Ingress failed — caching sentinel zero address.");
+            accountRulesContractCache.set(Address.ZERO);
+            lastAccountCacheUpdateBlock = currentBlock;
           }
         }
       }
@@ -376,10 +391,13 @@ public class PermissioningPlugin implements BesuPlugin {
               LOG.debug("Resolved NodeRules contract address: {}", resolved);
             } else {
               LOG.error("Node Ingress returned malformed address data ({} bytes).", bytes.size());
+              nodeRulesContractCache.set(Address.ZERO);
+              lastNodeCacheUpdateBlock = currentBlock;
             }
           } else {
-            LOG.error("Simulation to Node Ingress failed — caching null address.");
-            nodeRulesContractCache.set(null);
+            LOG.error("Simulation to Node Ingress failed — caching sentinel zero address.");
+            nodeRulesContractCache.set(Address.ZERO);
+            lastNodeCacheUpdateBlock = currentBlock;
           }
         }
       }
@@ -387,7 +405,7 @@ public class PermissioningPlugin implements BesuPlugin {
     return nodeRulesContractCache.get();
   }
 
-  // --- Package-private getters and setters for testing without reflection ---
+  // --- Package-private test harness mutators (VisibleForTesting) ---
 
   void setAccountIngressAddress(final Address address) {
     this.accountIngressAddress = address;
