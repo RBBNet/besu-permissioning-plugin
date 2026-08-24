@@ -114,10 +114,9 @@ public class FailCloseScenario {
         );
 
         report.code("Transaction blocking mechanism",
-            "// For each received transaction:
-" +
+            "// For each received transaction:\n" +
             "TransactionPermissioningProvider.isPermitted(transaction)\n" +
-            "// Se accountIngressAddress == null → return false (Fail-Close)");
+            "// If accountIngressAddress == null -> return false (Fail-Close)");
 
         report.observation(
             "This mechanism guarantees that even if an unauthorized node succeeded " +

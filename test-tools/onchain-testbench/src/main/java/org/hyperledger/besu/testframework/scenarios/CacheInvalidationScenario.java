@@ -122,18 +122,17 @@ public class CacheInvalidationScenario {
             report.stepFailed("Timeout aguardando novo bloco.");
         }
 
-        // Passo 4: Verificar estado on-chain
+        // Step 4: Verify on-chain state
         report.step(
-            "Verificar estado on-chain da conta revogada",
-            "Consultar diretamente o contrato AccountRules para confirmar que " +
+            "Verify on-chain state of revoked account",
+            "Query AccountRules contract directly to confirm that " +
             "the account is NO LONGER in the allowlist."
         );
 
         report.code("On-chain verification",
-            "// Contract call simulation (without consuming gas):
-" +
+            "// Contract call simulation (without consuming gas):\n" +
             "AccountRules.accountPermitted(\"" + revokedAccount + "\")\n" +
-            "// Esperado: false");
+            "// Expected: false");
 
         report.observation(
             "This verification is exactly what the plugin performs internally. " +

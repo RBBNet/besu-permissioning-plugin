@@ -89,21 +89,19 @@ public class FailCloseTimeoutScenario {
         // Step 2: Pause the validator container (simulates Ingress unavailability)
         report.step(
             "Simulate communication failure: pause validator container",
-            "Usando 'docker pause " + effectiveName + "', congelamos todos os processos " +
+            "Using 'docker pause " + effectiveName + "', we freeze all processes " +
             "of container. This simulates complete communication failure where plugin " +
             "cannot read governance rules (Ingress/Rules inaccessible)."
         );
 
         report.code("Failure simulation command",
             "docker pause " + effectiveName + "\n" +
-            "// Plugin will attempt to call simulate() on Ingress
-" +
-            "// -> Container is paused -> no response
-" +
-            "// → O plugin DEVE retornar false (Fail-Close)");
+            "// Plugin will attempt to call simulate() on Ingress\n" +
+            "// -> Container is paused -> no response\n" +
+            "// -> Plugin MUST return false (Fail-Close)");
 
         boolean paused = pauseContainer(effectiveName);
-        report.result("Container pausado", String.valueOf(paused));
+        report.result("Container paused", String.valueOf(paused));
 
         if (!paused) {
             report.stepFailed("Could not pause container " + effectiveName);

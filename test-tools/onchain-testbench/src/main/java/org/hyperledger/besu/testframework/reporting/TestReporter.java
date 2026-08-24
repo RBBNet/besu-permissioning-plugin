@@ -149,7 +149,7 @@ public class TestReporter {
      */
     public TestReporter table(String label, List<String[]> rows) {
         if (currentStep == null) {
-            step("(tabela)");
+            step("(table)");
         }
         currentStep.addTable(label, rows);
         return this;
@@ -187,7 +187,7 @@ public class TestReporter {
     public TestReporter stepFailed(String reason) {
         if (currentStep != null) {
             currentStep.setStatus(ExecutionStep.Status.FAILED);
-            currentStep.addEvidence("Motivo da falha", reason, Evidence.Type.ERROR);
+            currentStep.addEvidence("Failure reason", reason, Evidence.Type.ERROR);
         }
         this.passed = false;
         return this;
@@ -393,7 +393,7 @@ public class TestReporter {
                 java.nio.file.Files.writeString(hashFile,
                     hexHash.toString() + "  " + superlogFilename);
 
-                LOG.info("SuperLog gerado: {} ({} linhas, SHA-256: {})",
+                LOG.info("SuperLog generated: {} ({} lines, SHA-256: {})",
                     superlogPath, lineCount, hexHash);
 
             } catch (Exception e) {
