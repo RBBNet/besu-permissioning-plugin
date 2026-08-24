@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'com.gradleup.shadow' version '8.3.5'
     id 'com.diffplug.spotless' version '6.25.0'
 }
 
@@ -49,6 +49,9 @@ shadowJar {
     archiveBaseName.set('besu-plugin-permissioning')
     archiveClassifier.set('')
     archiveVersion.set('')
+
+    relocate 'com.google.common', 'org.hyperledger.besu.plugin.permissioning.shadow.guava'
+    relocate 'org.apache.tuweni', 'org.hyperledger.besu.plugin.permissioning.shadow.tuweni'
 
     configurations = [project.configurations.runtimeClasspath]
     mergeServiceFiles()
