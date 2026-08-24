@@ -14,19 +14,19 @@ NC='\033[0m'
 
 usage() {
     cat <<EOF
-Uso: $(basename "$0") [OPÇÕES]
+Usage: $(basename "$0") [OPTIONS]
 
-Opções:
-  --network <json>        Network config do Caliper (default: networks/network-plugin-on.json)
+Options:
+  --network <json>        Caliper network config (default: networks/network-plugin-on.json)
   --workload <js>         Workload module (default: workloads/transfer-constant.js)
-  --tx-per-sec <n>        Taxa alvo de TPS (default: 100)
-  --duration <s>          Duração em segundos (default: 60)
-  --output <dir>          Diretório de relatórios (default: reports/)
-  --suite <nome>          Rodar suite pré-definida: full, compare, cache, carga, duracao
-  --dry-run               Mostrar comandos sem executar
-  -h, --help              Mostrar esta ajuda
+  --tx-per-sec <n>        Target TPS rate (default: 100)
+  --duration <s>          Duration in seconds (default: 60)
+  --output <dir>          Report directory (default: reports/)
+  --suite <name>          Run pre-defined suite: full, compare, cache, carga, duracao
+  --dry-run               Show commands without executing
+  -h, --help              Show this help message
 
-Exemplos:
+Examples:
   $(basename "$0") --suite compare
   $(basename "$0") --network networks/network-plugin-on.json --tx-per-sec 200 --duration 120
   $(basename "$0") --workload workloads/permissionCheck.js --tx-per-sec 50
@@ -40,33 +40,33 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
 check_prereqs() {
-    log_info "Verificando pré-requisitos..."
+    log_info "Checking prerequisites..."
 
     if ! command -v caliper &>/dev/null; then
-        log_error "Caliper não encontrado. Instale com: npm install -g @hyperledger/caliper-cli@0.6.0"
+        log_error "Caliper not found. Install with: npm install -g @hyperledger/caliper-cli@0.6.0"
         exit 1
     fi
 
     if ! command -v docker &>/dev/null; then
-        log_error "Docker não encontrado."
+        log_error "Docker not found."
         exit 1
     fi
 
     if ! docker ps &>/dev/null; then
-        log_error "Docker não está rodando."
+        log_error "Docker is not running."
         exit 1
     fi
 
-    log_ok "Pré-requisitos OK"
+    log_ok "Prerequisites OK"
 }
 
 check_network() {
-    log_info "Verificando se a rede Besu está ativa..."
+    log_info "Checking if Besu network is active..."
 
     if ! curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
         http://localhost:9005 &>/dev/null; then
-        log_warn "Rede Besu não detectada na porta 9005."
-        log_warn "Inicie a rede antes de rodar benchmarks:"
+        log_warn "Besu network not detected on port 9005."
+        log_warn "Start the network before running benchmarks:"
         log_warn "  cd $TEST_SUITE_DIR && python3 orchestrator.py -c configs/scenario-full-network.json -a start"
         return 1
     fi
@@ -77,10 +77,10 @@ check_network() {
 
     if [ -n "$block_number" ] && [ "$block_number" != "0x0" ] && [ "$block_number" != "0x" ]; then
         local decimal=$((16#${block_number#0x}))
-        log_ok "Rede ativa. Bloco atual: $decimal"
+        log_ok "Network active. Current block: $decimal"
         return 0
     else
-        log_warn "Rede parece inativa (blockNumber=$block_number). Aguardando 10s..."
+        log_warn "Network appears inactive (blockNumber=$block_number). Waiting 10s..."
         sleep 10
         return 0
     fi
@@ -99,7 +99,7 @@ run_benchmark() {
     local output_dir="$REPORTS_DIR/${TIMESTAMP}_${network_name}_${bench_name}"
     mkdir -p "$output_dir"
 
-    log_info "Executando benchmark: $bench_name em $network_name"
+    log_info "Executing benchmark: $bench_name on $network_name"
     log_info "  Network: $network_config"
     log_info "  Benchmark: $bench_config"
     log_info "  Output: $output_dir"
@@ -116,7 +116,7 @@ run_benchmark() {
         return 0
     fi
 
-    log_info "Comando: $cmd"
+    log_info "Command: $cmd"
 
     local start_time
     start_time=$(date +%s)
@@ -127,10 +127,10 @@ run_benchmark() {
     end_time=$(date +%s)
     local duration=$((end_time - start_time))
 
-    log_ok "Benchmark concluído em ${duration}s"
-    log_info "Relatório: $output_dir/"
+    log_ok "Benchmark completed in ${duration}s"
+    log_info "Report: $output_dir/"
 
-    # Coleta docker stats se disponível
+    # Collect docker stats if available
     if command -v docker &>/dev/null; then
         docker stats --no-stream --format \
             '{"container":"{{.Name}}","cpu":"{{.CPUPerc}}","mem":"{{.MemUsage}}","net":"{{.NetIO}}"}' \
@@ -141,28 +141,28 @@ run_benchmark() {
 }
 
 suite_compare() {
-    log_info "=== Suite Comparativa: Plugin ON vs OFF ==="
+    log_info "=== Comparative Suite: Plugin ON vs OFF ==="
 
     local network_on="$SCRIPT_DIR/networks/network-plugin-on.json"
     local network_off="$SCRIPT_DIR/networks/network-plugin-off.json"
     local bench="$SCRIPT_DIR/configs/benchmark-comparativo.yaml"
 
     if [ ! -f "$network_on" ]; then
-        log_error "Network config não encontrada: $network_on"
+        log_error "Network config not found: $network_on"
         exit 1
     fi
 
-    log_info "Rodando com plugin ON..."
+    log_info "Running with plugin ON..."
     run_benchmark "$network_on" "$bench"
 
-    log_info "Rodando com plugin OFF..."
+    log_info "Running with plugin OFF..."
     run_benchmark "$network_off" "$bench"
 
-    log_ok "Suite comparativa concluída"
+    log_ok "Comparative suite completed"
 }
 
 suite_cache() {
-    log_info "=== Suite Saturação de Cache ==="
+    log_info "=== Cache Saturation Suite ==="
 
     local network="$SCRIPT_DIR/networks/network-plugin-on.json"
     local bench="$SCRIPT_DIR/configs/benchmark-cache.yaml"
@@ -171,7 +171,7 @@ suite_cache() {
 }
 
 suite_carga() {
-    log_info "=== Suite Carga Sustentada ==="
+    log_info "=== Sustained Load Suite ==="
 
     local network="$SCRIPT_DIR/networks/network-plugin-on.json"
     local bench="$SCRIPT_DIR/configs/benchmark-carga.yaml"
@@ -180,7 +180,7 @@ suite_carga() {
 }
 
 suite_duracao() {
-    log_info "=== Suite Duração 30min ==="
+    log_info "=== 30-Minute Duration Suite ==="
 
     local network="$SCRIPT_DIR/networks/network-plugin-on.json"
     local bench="$SCRIPT_DIR/configs/benchmark-duracao.yaml"
@@ -189,11 +189,11 @@ suite_duracao() {
 }
 
 suite_full() {
-    log_info "=== Suite Full: Todos os cenários ==="
+    log_info "=== Full Suite: All Scenarios ==="
     suite_compare
     suite_cache
     suite_carga
-    log_ok "Suite full concluída"
+    log_ok "Full suite completed"
 }
 
 # Defaults
@@ -214,7 +214,7 @@ while [[ $# -gt 0 ]]; do
         --suite)        SUIT="$2"; shift 2 ;;
         --dry-run)      DRY_RUN="true"; shift ;;
         -h|--help)      usage ;;
-        *)              log_error "Opção desconhecida: $1"; usage ;;
+        *)              log_error "Unknown option: $1"; usage ;;
     esac
 done
 
@@ -234,10 +234,10 @@ if [ -n "$SUIT" ]; then
         cache)   suite_cache ;;
         carga)   suite_carga ;;
         duracao) suite_duracao ;;
-        *)       log_error "Suite desconhecida: $SUIT"; usage ;;
+        *)       log_error "Unknown suite: $SUIT"; usage ;;
     esac
 else
     run_benchmark "$NETWORK_CONFIG" "$BENCH_CONFIG" "$CUSTOM_ARGS"
 fi
 
-log_ok "Execução finalizada."
+log_ok "Execution complete."

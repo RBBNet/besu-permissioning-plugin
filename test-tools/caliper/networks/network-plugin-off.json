@@ -2,8 +2,8 @@
   "caliper": {
     "blockchain": "ethereum",
     "command": {
-      "start": "echo 'Rede já iniciada pelo test-suite'",
-      "end": "echo 'Rede será derrubada pelo test-suite'"
+      "start": "echo 'Network already started by test-suite'",
+      "end": "echo 'Network will be stopped by test-suite'"
     }
   },
   "ethereum": {
