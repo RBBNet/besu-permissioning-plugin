@@ -12,10 +12,15 @@ fi
 
 DOCKER_NET="${PROJECT,,}_default"
 
-echo "1. Stopping and recreating node container with Permissioning Plugin active..."
+echo "1. Fetching bootnode credentials..."
+docker run --rm -v ${PWD}/$PROJECT/.env.configs/nodes/boot1:/key-dir hyperledger/besu:25.12.0 public-key export --node-private-key-file=/key-dir/key --to=/key-dir/key.pub > /dev/null 2>&1
+BOOT_PUB=$(cat $PROJECT/.env.configs/nodes/boot1/key.pub | sed 's/^0x//')
+BOOT_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${PROJECT,,}_boot1_1)
+
+echo "2. Stopping and recreating node container with Permissioning Plugin active..."
 docker rm -f ${PROJECT,,}_${NODE_NAME}_1 > /dev/null 2>&1
 
-echo "2. Booting secured node container..."
+echo "3. Booting secured node container..."
 docker run -d --name ${PROJECT,,}_${NODE_NAME}_1 \
   --network $DOCKER_NET \
   -p $RPC_PORT:8545 \

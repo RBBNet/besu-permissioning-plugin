@@ -58,6 +58,16 @@ These tools follow Platform Engineering (DevOps/SecOps) best practices to automa
     ./vote.sh <rpc_port> <validator_address> <true|false>
     ```
 
+### 4. Observability & Monitoring
+
+* **`update_prom.sh`**
+  * **Function:** Dynamic Prometheus target manager.
+  * **Description:** Dynamically inspects the IP address of a newly instantiated node container, appends its metrics endpoint (`:9545`) to `prometheus.yml`, and restarts the Prometheus monitoring container.
+  * **Usage:**
+    ```bash
+    ./update_prom.sh <project_name> <node_name>
+    ```
+
 ---
 
 ## 🔒 Security Best Practices

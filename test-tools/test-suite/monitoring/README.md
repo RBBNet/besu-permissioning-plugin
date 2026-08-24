@@ -43,19 +43,22 @@ In Grafana → **Explore** → **Prometheus**, use:
 
 ```
 # Permitted transactions
-besupermissioning_onchain_transaction_check_count_permitted_total
+besu_permissioning_onchain_transaction_check_count_permitted_total
 
 # Denied transactions
-besupermissioning_onchain_transaction_check_count_denied_total
+besu_permissioning_onchain_transaction_check_count_denied_total
 
-# Total verified
-besupermissioning_onchain_transaction_check_count_total
+# Total verified transactions
+besu_permissioning_onchain_transaction_check_count_total
 
-# Cache hits
-besupermissioning_onchain_transaction_cache_hit_count_total
+# Permitted node connections
+besu_permissioning_onchain_node_check_count_permitted_total
 
-# Node connections verified
-besupermissioning_onchain_node_check_count_total
+# Denied node connections
+besu_permissioning_onchain_node_check_count_denied_total
+
+# Total node connections verified
+besu_permissioning_onchain_node_check_count_total
 ```
 
 ## Configuration
