@@ -2,8 +2,8 @@
 # ============================================================================
 # DEPLOY CONTRACTS — Deploy Admin + AccountRules + NodeRules via forge create
 # ============================================================================
-# Executado pelo orchestrator após rede iniciar (como setup_script).
-# Variáveis de ambiente:
+# Executed by orchestrator after network starts (as setup_script).
+# Environment variables:
 #   RPC_URL, ACCOUNT_INGRESS, NODE_INGRESS, ADMIN_PK, ADMIN_ADDR
 # ============================================================================
 set -e
@@ -24,13 +24,13 @@ echo "RPC: $RPC_URL"
 echo "Smart contracts: $SMART_CONTRACTS_DIR"
 echo ""
 
-# Aguardar RPC
+# Wait for RPC
 for i in $(seq 1 60); do
     BLOCK=$(curl -s -X POST -H 'Content-Type: application/json' \
         --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
         "$RPC_URL" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('result','0x0'))" 2>/dev/null || echo "0x0")
     if [ "$BLOCK" != "0x0" ]; then
-        echo "✓ RPC respondendo no bloco $BLOCK"
+        echo "✓ RPC responding on block $BLOCK"
         break
     fi
     sleep 2
@@ -44,7 +44,7 @@ ADMIN_OUT=$(forge create --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" \
     "$SMART_CONTRACTS_DIR/src/Admin.sol:Admin" 2>&1)
 ADMIN_DEPLOYED=$(echo "$ADMIN_OUT" | grep -oP 'Deployed to: \K0x[a-fA-F0-9]{40}')
 if [ -z "$ADMIN_DEPLOYED" ]; then
-    echo "ERRO ao deployar Admin:"
+    echo "ERROR deploying Admin:"
     echo "$ADMIN_OUT"
     exit 1
 fi
@@ -60,7 +60,7 @@ ACCT_RULES_OUT=$(forge create --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" \
     --constructor-args "$ACCT_INGRESS" 2>&1)
 ACCT_RULES=$(echo "$ACCT_RULES_OUT" | grep -oP 'Deployed to: \K0x[a-fA-F0-9]{40}')
 if [ -z "$ACCT_RULES" ]; then
-    echo "ERRO ao deployar AccountRules:"
+    echo "ERROR deploying AccountRules:"
     echo "$ACCT_RULES_OUT"
     exit 1
 fi
@@ -76,16 +76,16 @@ NODE_RULES_OUT=$(forge create --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" \
     --constructor-args "$NODE_INGRESS" 2>&1)
 NODE_RULES=$(echo "$NODE_RULES_OUT" | grep -oP 'Deployed to: \K0x[a-fA-F0-9]{40}')
 if [ -z "$NODE_RULES" ]; then
-    echo "ERRO ao deployar NodeRules:"
+    echo "ERROR deploying NodeRules:"
     echo "$NODE_RULES_OUT"
     exit 1
 fi
 echo "  NodeRules: $NODE_RULES"
 sleep 3
 
-# Registrar Admin nos Ingresses
+# Register Admin in Ingresses
 echo ""
-echo "--- Registrando Admin nos Ingresses ---"
+echo "--- Registering Admin in Ingresses ---"
 cast send --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" --gas-limit 200000 \
     "$ACCT_INGRESS" "setContractAddress(bytes32,address)" "$ADMIN_KEY" "$ADMIN_DEPLOYED" \
     2>&1 | grep -E "transactionHash|status|Error" || true
@@ -96,9 +96,9 @@ cast send --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" --gas-limit 200000 \
     2>&1 | grep -E "transactionHash|status|Error" || true
 sleep 2
 
-# Registrar Rules nos Ingresses
+# Register Rules in Ingresses
 echo ""
-echo "--- Registrando Rules nos Ingresses ---"
+echo "--- Registering Rules in Ingresses ---"
 cast send --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" --gas-limit 200000 \
     "$ACCT_INGRESS" "setContractAddress(bytes32,address)" "$RULES_KEY" "$ACCT_RULES" \
     2>&1 | grep -E "transactionHash|status|Error" || true
@@ -109,17 +109,17 @@ cast send --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" --gas-limit 200000 \
     2>&1 | grep -E "transactionHash|status|Error" || true
 sleep 2
 
-# Adicionar Admin ao allowlist do AccountRules
+# Add Admin to AccountRules allowlist
 echo ""
-echo "--- Adicionando Admin ao allowlist ---"
+echo "--- Adding Admin to allowlist ---"
 cast send --rpc-url "$RPC_URL" --private-key "$ADMIN_PK" --gas-limit 200000 \
     "$ACCT_RULES" "addAccount(address)" "$ADMIN_ADDR" \
     2>&1 | grep -E "transactionHash|status|Error" || true
 sleep 3
 
-# Verificação final
+# Final verification
 echo ""
-echo "=== VERIFICAÇÃO FINAL ==="
+echo "=== FINAL VERIFICATION ==="
 echo -n "  AccountIngress->Admin: "
 cast call --rpc-url "$RPC_URL" "$ACCT_INGRESS" "getContractAddress(bytes32)(address)" "$ADMIN_KEY" 2>/dev/null
 echo -n "  AccountIngress->Rules: "

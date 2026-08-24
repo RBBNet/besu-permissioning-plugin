@@ -1,12 +1,12 @@
 #!/bin/bash
-# Script de conveniência para iniciar o orquestrador do test-suite
+# Convenience script for launching the test-suite orchestrator
 cd "$(dirname "$0")"
 
-# Verifica se o Python 3 está instalado
+# Check if Python 3 is installed
 if ! command -v python3 &> /dev/null; then
-    echo "❌ ERRO: Python 3 não está instalado no sistema."
+    echo "❌ ERROR: Python 3 is not installed on this system."
     exit 1
 fi
 
-# Roda o script de orquestração repassando os parâmetros
+# Run orchestration script forwarding arguments
 python3 orchestrator.py "$@"

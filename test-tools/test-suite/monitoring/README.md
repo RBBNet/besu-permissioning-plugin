@@ -1,29 +1,29 @@
 # Monitoring Stack
 
-Prometheus + Grafana para visualização de métricas do plugin de permissionamento.
+Prometheus + Grafana for visualizing permissioning plugin metrics.
 
-## Uso
+## Usage
 
-### Via Orchestrator (recomendado)
+### Via Orchestrator (recommended)
 
 ```bash
-# Iniciar rede COM monitoramento
+# Start network WITH monitoring
 python3 orchestrator.py -c configs/scenario-full-network.json -a start --monitoring
 
-# Parar rede E monitoramento
+# Stop network AND monitoring
 python3 orchestrator.py -a stop
 
-# Ver status (inclui monitoramento)
+# Check status (includes monitoring)
 python3 orchestrator.py -a status
 ```
 
-### Manualmente
+### Manually
 
 ```bash
-# Iniciar
+# Start
 ./monitoring.sh start
 
-# Parar
+# Stop
 ./monitoring.sh stop
 
 # Status
@@ -32,33 +32,33 @@ python3 orchestrator.py -a status
 
 ## URLs
 
-| Serviço | URL | Credenciais |
+| Service | URL | Credentials |
 |---------|-----|-------------|
 | Grafana | http://localhost:3000 | admin / admin |
 | Prometheus | http://localhost:9090 | - |
 
-## Métricas do Plugin
+## Plugin Metrics
 
-No Grafana → **Explore** → **Prometheus**, use:
+In Grafana → **Explore** → **Prometheus**, use:
 
 ```
-# Transações permitidas
+# Permitted transactions
 besupermissioning_onchain_transaction_check_count_permitted_total
 
-# Transações negadas
+# Denied transactions
 besupermissioning_onchain_transaction_check_count_denied_total
 
-# Total verificadas
+# Total verified
 besupermissioning_onchain_transaction_check_count_total
 
 # Cache hits
 besupermissioning_onchain_transaction_cache_hit_count_total
 
-# Conexões de nó verificadas
+# Node connections verified
 besupermissioning_onchain_node_check_count_total
 ```
 
-## Configuração
+## Configuration
 
-- `prometheus.yml` - Configuração do Prometheus (scrape targets)
-- `grafana/provisioning/` - Datasource automática do Prometheus
+- `prometheus.yml` - Prometheus configuration (scrape targets)
+- `grafana/provisioning/` - Automatic Prometheus datasource provisioning

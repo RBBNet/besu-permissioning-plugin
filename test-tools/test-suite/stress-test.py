@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Stress Test para Plugin de Permissionamento.
-Fase 1: Gera transações serialmente (sem concorrência)
-Fase 2: Envia transações concorrentemente (mede performance real do plugin)
+Stress Test for Permissioning Plugin.
+Phase 1: Generates transactions serially (without concurrency)
+Phase 2: Sends transactions concurrently (measures actual plugin performance)
 """
 
 import asyncio
@@ -33,11 +33,11 @@ ACCOUNTS = {
     "unauth": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
 }
 
-# Conta para forçar mineração de bloco (drena gas, invalida cache)
+# Account to force block mining (drains gas, invalidates cache)
 DRAINER_ACCOUNT = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
 async def get_current_block(session: aiohttp.ClientSession, rpc_url: str) -> int:
-    """Obtém número do bloco atual."""
+    """Gets current block number."""
     async with session.post(rpc_url, json={
         "jsonrpc": "2.0",
         "method": "eth_blockNumber",
@@ -49,7 +49,7 @@ async def get_current_block(session: aiohttp.ClientSession, rpc_url: str) -> int
 
 async def wait_for_new_block(session: aiohttp.ClientSession, rpc_url: str, 
                              current_block: int, timeout: float = 5.0) -> bool:
-    """Aguarda um novo bloco ser mined."""
+    """Waits for a new block to be mined."""
     start = time.time()
     while time.time() - start < timeout:
         new_block = await get_current_block(session, rpc_url)
@@ -59,7 +59,7 @@ async def wait_for_new_block(session: aiohttp.ClientSession, rpc_url: str,
     return False
 
 async def generate_transaction(rpc_url: str, account: str, nonce: int) -> str:
-    """Gera uma transação assinada com nonce específico."""
+    """Generates a signed transaction with specific nonce."""
     proc = await asyncio.create_subprocess_exec(
         sys.executable, "postman/gen-signed-tx.py",
         "--account", account,
@@ -76,7 +76,7 @@ async def generate_transaction(rpc_url: str, account: str, nonce: int) -> str:
     return data.get("signed_raw_tx")
 
 async def get_nonce(session: aiohttp.ClientSession, rpc_url: str, account: str) -> int:
-    """Obtém nonce atual da conta."""
+    """Gets current account nonce."""
     address = ACCOUNTS.get(account, account)
     async with session.post(rpc_url, json={
         "jsonrpc": "2.0",
@@ -89,14 +89,14 @@ async def get_nonce(session: aiohttp.ClientSession, rpc_url: str, account: str) 
 
 async def generate_all_transactions(rpc_url: str, account: str, 
                                     total_txs: int) -> List[str]:
-    """Gera todas as transações serialmente (sem concorrência)."""
-    print(f"\n📝 FASE 1: Gerando {total_txs} transações...")
+    """Generates all transactions serially (no concurrency)."""
+    print(f"\n📝 PHASE 1: Generating {total_txs} transactions...")
     start = time.time()
     
     async with aiohttp.ClientSession() as session:
         nonce = await get_nonce(session, rpc_url, account)
     
-    print(f"   Nonce inicial: {nonce}")
+    print(f"   Initial nonce: {nonce}")
     
     transactions = []
     for i in range(total_txs):
@@ -104,10 +104,10 @@ async def generate_all_transactions(rpc_url: str, account: str,
         if raw_tx:
             transactions.append(raw_tx)
         else:
-            print(f"   ⚠️  Erro ao gerar tx nonce={nonce + i}")
+            print(f"   ⚠️  Error generating tx nonce={nonce + i}")
     
     elapsed = time.time() - start
-    print(f"   ✅ Geradas: {len(transactions)}/{total_txs} ({elapsed:.1f}s)")
+    print(f"   ✅ Generated: {len(transactions)}/{total_txs} ({elapsed:.1f}s)")
     return transactions
 
 async def send_single_transaction(session: aiohttp.ClientSession, url: str,
@@ -115,14 +115,14 @@ async def send_single_transaction(session: aiohttp.ClientSession, url: str,
                                    result: StressResult, 
                                    semaphore: asyncio.Semaphore,
                                    no_cache: bool = False):
-    """Envia uma transação com semáforo."""
+    """Sends a single transaction under semaphore control."""
     async with semaphore:
         start = time.time()
         
-        # Se no_cache, forçar invalidação enviando tx dummy e esperando novo bloco
+        # If no_cache, force invalidation by sending dummy tx and waiting for new block
         if no_cache:
             current_block = await get_current_block(session, url)
-            # Enviar tx dummy (valor zero, sem impacto)
+            # Send dummy tx (zero value, no side effects)
             dummy_tx = await generate_transaction(url, "admin", 999999999)
             if dummy_tx:
                 await session.post(url, json={
@@ -131,10 +131,10 @@ async def send_single_transaction(session: aiohttp.ClientSession, url: str,
                     "params": [dummy_tx],
                     "id": 0
                 }, timeout=aiohttp.ClientTimeout(total=5))
-            # Aguardar novo bloco (invalida cache)
+            # Wait for new block (invalidates cache)
             await wait_for_new_block(session, url, current_block, timeout=10.0)
         
-        # Medir APENAS o tempo da chamada RPC (sem incluir espera de bloco)
+        # Measure ONLY the RPC call duration (excluding block wait)
         tx_start = time.time()
         payload = {
             "jsonrpc": "2.0",
@@ -152,7 +152,7 @@ async def send_single_transaction(session: aiohttp.ClientSession, url: str,
         tx_duration = time.time() - tx_start
         total_duration = time.time() - start
         
-        # Armazenar duração da tx real (sem overhead de cache invalidation)
+        # Store actual tx duration (without cache invalidation overhead)
         result.durations.append(tx_duration)
         result.total += 1
         
@@ -168,9 +168,9 @@ async def send_single_transaction(session: aiohttp.ClientSession, url: str,
 
 async def send_all_transactions(rpc_urls: List[str], transactions: List[str],
                                  concurrency: int, no_cache: bool = False) -> StressResult:
-    """Envia todas as transações concorrentemente."""
-    cache_msg = " (SEM CACHE)" if no_cache else ""
-    print(f"\n🚀 FASE 2: Enviando {len(transactions)} transações{cache_msg} (concorrência={concurrency})...")
+    """Sends all transactions concurrently."""
+    cache_msg = " (NO CACHE)" if no_cache else ""
+    print(f"\n🚀 PHASE 2: Sending {len(transactions)} transactions{cache_msg} (concurrency={concurrency})...")
     start = time.time()
     
     result = StressResult()
@@ -191,46 +191,46 @@ async def send_all_transactions(rpc_urls: List[str], transactions: List[str],
 async def run_benchmark(rpc_urls: List[str], account: str,
                         total_txs: int, concurrency: int,
                         label: str, no_cache: bool = False) -> BenchmarkResult:
-    """Executa benchmark completo: geração + envio."""
-    cache_msg = " [SEM CACHE]" if no_cache else ""
+    """Executes complete benchmark: generation + sending."""
+    cache_msg = " [NO CACHE]" if no_cache else ""
     print(f"\n{'='*60}")
     print(f"🔥 BENCHMARK: {label}{cache_msg}")
-    print(f"   Total: {total_txs} | Concorrência: {concurrency}")
-    print(f"   Nós: {len(rpc_urls)} ({', '.join(rpc_urls)})")
+    print(f"   Total: {total_txs} | Concurrency: {concurrency}")
+    print(f"   Nodes: {len(rpc_urls)} ({', '.join(rpc_urls)})")
     print(f"{'='*60}")
     
     total_start = time.time()
     
-    # Fase 1: Gerar transações serialmente
+    # Phase 1: Generate transactions serially
     gen_start = time.time()
     transactions = await generate_all_transactions(rpc_urls[0], account, total_txs)
     gen_time = time.time() - gen_start
     
     if not transactions:
-        print("❌ Nenhuma transação gerada")
+        print("❌ No transactions generated")
         return BenchmarkResult()
     
-    # Fase 2: Enviar transações concorrentemente
+    # Phase 2: Send transactions concurrently
     send_start = time.time()
     result = await send_all_transactions(rpc_urls, transactions, concurrency, no_cache)
     send_time = time.time() - send_start
     
     total_time = time.time() - total_start
     
-    # Calcular métricas
+    # Calculate metrics
     avg_duration = sum(result.durations) / len(result.durations) if result.durations else 0
     tx_per_sec = result.total / send_time if send_time > 0 else 0
     
-    print(f"\n📊 RESULTADOS ({total_time:.1f}s total):")
-    print(f"   ⏱️  Geração:    {gen_time:.1f}s ({gen_time/total_time*100:.0f}%)")
-    print(f"   ⏱️  Envio:      {send_time:.1f}s ({send_time/total_time*100:.0f}%)")
+    print(f"\n📊 RESULTS ({total_time:.1f}s total):")
+    print(f"   ⏱️  Generation: {gen_time:.1f}s ({gen_time/total_time*100:.0f}%)")
+    print(f"   ⏱️  Sending:    {send_time:.1f}s ({send_time/total_time*100:.0f}%)")
     print(f"   ─────────────────────────────────")
-    print(f"   ✅ Permitidas: {result.permitted}")
-    print(f"   ❌ Negadas:    {result.denied}")
-    print(f"   ⚠️  Erros:      {result.errors}")
+    print(f"   ✅ Permitted:  {result.permitted}")
+    print(f"   ❌ Denied:     {result.denied}")
+    print(f"   ⚠️  Errors:     {result.errors}")
     print(f"   ─────────────────────────────────")
-    print(f"   ⏱️  Latência média:  {avg_duration*1000:.0f}ms por tx")
-    print(f"   🚀 Throughput real:  {tx_per_sec:.1f} tx/s")
+    print(f"   ⏱️  Average latency: {avg_duration*1000:.0f}ms per tx")
+    print(f"   🚀 Observed throughput: {tx_per_sec:.1f} tx/s")
     
     return BenchmarkResult(
         generate_time=gen_time,
@@ -243,25 +243,25 @@ async def main():
     import argparse
     
     parser = argparse.ArgumentParser(
-        description="Stress Test Plugin Permissionamento (Benchmark Preciso)")
+        description="Permissioning Plugin Stress Test (Accurate Benchmark)")
     parser.add_argument("--rpc", nargs="+", default=["http://localhost:9005"],
-                        help="URLs RPC (default: http://localhost:9005)")
+                        help="RPC URLs (default: http://localhost:9005)")
     parser.add_argument("--count", type=int, default=100,
-                        help="Total de transações (default: 100)")
+                        help="Total transactions (default: 100)")
     parser.add_argument("--concurrency", type=int, default=10,
-                        help="Requisições simultâneas (default: 10)")
+                        help="Concurrent requests (default: 10)")
     parser.add_argument("--account", choices=["admin", "unauth"], default="admin",
-                        help="Conta para teste (default: admin)")
+                        help="Account for testing (default: admin)")
     parser.add_argument("--no-cache", action="store_true",
-                        help="Força invalidação de cache (envia tx dummy entre cada tx)")
+                        help="Forces cache invalidation (sends dummy tx between each tx)")
     parser.add_argument("--json", action="store_true",
-                        help="Saída JSON")
+                        help="JSON output")
     
     args = parser.parse_args()
     
-    # Verificar conexão
-    print("🔍 Verificando conexão com o nó RPC...")
-    await asyncio.sleep(1)  # Aguardar sistema estabilizar
+    # Check connection
+    print("🔍 Checking RPC node connection...")
+    await asyncio.sleep(1)  # Wait for system stabilization
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(args.rpc[0], json={
@@ -269,9 +269,9 @@ async def main():
             }, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 data = await resp.json()
                 block = int(data.get("result", "0x0"), 16)
-                print(f"   ✅ Conectado. Bloco atual: {block}")
+                print(f"   ✅ Connected. Current block: {block}")
     except Exception as e:
-        print(f"   ❌ Erro ao conectar: {e}")
+        print(f"   ❌ Connection error: {e}")
         sys.exit(1)
     
     # Executar benchmark
