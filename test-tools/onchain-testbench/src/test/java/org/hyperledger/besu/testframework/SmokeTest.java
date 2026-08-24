@@ -116,8 +116,6 @@ class SmokeTest {
         Path[] candidates = {
             Paths.get("genesis.json"),
             Paths.get("genesis-evolution.json"),
-            // Legacy paths (monorepo structure)
-            Paths.get("../rbb-network/genesis.json"),
             Paths.get("../onchain-testbench/genesis.json")
         };
         for (Path candidate : candidates) {

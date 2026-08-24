@@ -22,19 +22,19 @@ import java.nio.file.Paths;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Raw Docker log evidence for JIRA permissioning scenarios.
+ * Raw Docker log evidence for permissioning scenarios.
  *
  * Scenario 1: Authorized account → plugin allows → tx mined
  * Scenario 2: Unauthorized account → plugin blocks → error -32007
  *
  * Requires: Docker + permissioning-plugin.jar in ./plugins/
  * Run:
- *   ./gradlew test --tests "*JiraEvidenceTest" -Dperm.genesis.path=./genesis.json
+ *   ./gradlew test --tests "*PermissioningLogEvidenceTest" -Dperm.genesis.path=./genesis.json
  */
 @Tag("integration")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class JiraEvidenceTest {
-    private static final Logger LOG = LoggerFactory.getLogger(JiraEvidenceTest.class);
+class PermissioningLogEvidenceTest {
+    private static final Logger LOG = LoggerFactory.getLogger(PermissioningLogEvidenceTest.class);
 
     private static BlockchainNetwork network;
     private static Web3j web3j;
@@ -44,7 +44,7 @@ class JiraEvidenceTest {
 
     @BeforeAll
     static void setUp() throws Exception {
-        LOG.info("=== JIRA Evidence: Permissioning Plugin Raw Log Test ===");
+        LOG.info("=== Permissioning Log Evidence: Permissioning Plugin Raw Log Test ===");
 
         genesisPath = resolveGenesisPath();
         LOG.info("Genesis: {}", genesisPath.toAbsolutePath());
@@ -62,7 +62,7 @@ class JiraEvidenceTest {
             .withValidators(4)
             .withRpcNodes(1)
             .withGenesis(genesisPath)
-            .withLogCapture("jira-evidence")
+            .withLogCapture("permissioning-log-evidence")
             .build();
         network.start();
         LOG.info("Network started: {} nodes",
@@ -96,7 +96,7 @@ class JiraEvidenceTest {
     @AfterAll
     static void tearDown() {
         if (network != null) {
-            LOG.info("Shutting down. Raw logs: docs/relatorios/docker-logs/jira-evidence/");
+            LOG.info("Shutting down. Raw container logs captured.");
             network.shutdown();
         }
     }

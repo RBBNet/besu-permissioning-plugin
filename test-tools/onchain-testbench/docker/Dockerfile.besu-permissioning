@@ -7,6 +7,6 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
 
 RUN mkdir -p /opt/besu/plugins
 
-COPY plugin-permissioned-rbb-integra/build/libs/rbb-permissioning-plugin-1.0-SNAPSHOT.jar /opt/besu/plugins/rbb-permissioning-plugin.jar
+COPY build/libs/besu-plugin-permissioning.jar /opt/besu/plugins/besu-plugin-permissioning.jar
 
 USER besu

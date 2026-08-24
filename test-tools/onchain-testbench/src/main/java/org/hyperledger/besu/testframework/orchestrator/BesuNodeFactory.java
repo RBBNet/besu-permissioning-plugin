@@ -247,7 +247,7 @@ public class BesuNodeFactory {
 
     /**
      * Locates the permissioning plugin JAR.
-     * Search order: env var PERM_PLUGIN_PATH, ./plugins/, ./build/libs/, ../plugin-permissioned-rbb-integra/
+     * Search order: env var PERM_PLUGIN_PATH, ./plugins/, ./build/libs/, ../build/libs/
      */
     private static String findPluginJar() {
         String envPath = System.getenv("PERM_PLUGIN_PATH");
@@ -260,12 +260,11 @@ public class BesuNodeFactory {
         }
 
         String[] candidates = {
+            "plugins/besu-plugin-permissioning.jar",
             "plugins/permissioning-plugin.jar",
-            "plugins/onchain-permissioning-plugin.jar",
-            "build/libs/onchain-permissioning-plugin.jar",
-            "../../build/libs/onchain-permissioning-plugin.jar",
-            "../../build/libs/permissioning-plugin.jar",
-            "../rbb-network/plugins/permissioning-plugin.jar"
+            "build/libs/besu-plugin-permissioning.jar",
+            "../../build/libs/besu-plugin-permissioning.jar",
+            "../build/libs/besu-plugin-permissioning.jar"
         };
         for (String candidate : candidates) {
             File f = new File(candidate);
