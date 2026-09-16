@@ -17,8 +17,10 @@ package org.hyperledger.besu.plugin.permissioning;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.net.InetAddress;
+import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.bouncycastle.crypto.digests.KeccakDigest;
@@ -90,9 +92,8 @@ public class PermissioningPluginFunctions {
   public static Bytes encodeTransactionAllowed(final Transaction transaction) {
     Address sender = transaction.getSender();
     Address target = transaction.getTo().map(Address.class::cast).orElse(Address.ZERO);
-    BigInteger value = transaction.getValue().getAsBigInteger();
-    BigInteger gasPrice =
-        transaction.getGasPrice().map(Quantity::getAsBigInteger).orElse(BigInteger.ZERO);
+    BigInteger value = extractTransactionValue(transaction);
+    BigInteger gasPrice = extractTransactionGasPrice(transaction);
     BigInteger gasLimit = BigInteger.valueOf(transaction.getGasLimit());
 
     return Bytes.concatenate(
@@ -103,6 +104,85 @@ public class PermissioningPluginFunctions {
         encodeUInt256(gasLimit),
         encodeUInt256(BigInteger.valueOf(32L * 6L)),
         encodeBytes(transaction.getPayload()));
+  }
+
+  /**
+   * Safely extracts the transaction value as a {@link BigInteger}.
+   *
+   * <p>Uses reflection with fallback to direct method invocation to ensure binary compatibility
+   * across different Hyperledger Besu releases (e.g., 24.x vs 25.x), where the return type of
+   * {@code Transaction.getValue()} may vary between {@code Wei} and {@code Quantity} at the
+   * bytecode level.
+   *
+   * @param transaction the Besu transaction instance
+   * @return the transaction value as a BigInteger, or {@link BigInteger#ZERO} if unresolvable
+   */
+  private static BigInteger extractTransactionValue(final Transaction transaction) {
+    try {
+      final Method getValueMethod = transaction.getClass().getMethod("getValue");
+      final Object valueObject = getValueMethod.invoke(transaction);
+      if (valueObject != null) {
+        return extractBigIntegerFromObject(valueObject);
+      }
+    } catch (final ReflectiveOperationException reflectionException) {
+      try {
+        return transaction.getValue().getAsBigInteger();
+      } catch (final Throwable fallbackThrowable) {
+        // Fallback attempt failed
+      }
+    }
+    return BigInteger.ZERO;
+  }
+
+  /**
+   * Safely extracts the transaction gas price as a {@link BigInteger}.
+   *
+   * <p>Uses reflection with fallback to direct method invocation to ensure binary compatibility
+   * across different Hyperledger Besu releases, where the return type of {@code
+   * Transaction.getGasPrice()} may differ at the bytecode level.
+   *
+   * @param transaction the Besu transaction instance
+   * @return the gas price as a BigInteger, or {@link BigInteger#ZERO} if missing or unresolvable
+   */
+  private static BigInteger extractTransactionGasPrice(final Transaction transaction) {
+    try {
+      final Method getGasPriceMethod = transaction.getClass().getMethod("getGasPrice");
+      final Object gasPriceObject = getGasPriceMethod.invoke(transaction);
+      if (gasPriceObject instanceof Optional<?> gasPriceOptional && gasPriceOptional.isPresent()) {
+        return extractBigIntegerFromObject(gasPriceOptional.get());
+      }
+    } catch (final ReflectiveOperationException reflectionException) {
+      try {
+        return transaction.getGasPrice().map(Quantity::getAsBigInteger).orElse(BigInteger.ZERO);
+      } catch (final Throwable fallbackThrowable) {
+        // Fallback attempt failed
+      }
+    }
+    return BigInteger.ZERO;
+  }
+
+  /**
+   * Converts a numeric value object returned by Besu domain models (e.g. {@code Wei}, {@code
+   * Quantity}, {@code UInt256}) into a {@link BigInteger}.
+   *
+   * @param valueObject the object instance to convert
+   * @return the resolved BigInteger representation, or {@link BigInteger#ZERO} if conversion fails
+   */
+  private static BigInteger extractBigIntegerFromObject(final Object valueObject) {
+    if (valueObject instanceof BigInteger bigIntegerValue) {
+      return bigIntegerValue;
+    }
+    try {
+      final Method getAsBigIntegerMethod = valueObject.getClass().getMethod("getAsBigInteger");
+      return (BigInteger) getAsBigIntegerMethod.invoke(valueObject);
+    } catch (final ReflectiveOperationException reflectionException) {
+      try {
+        final Method toBigIntegerMethod = valueObject.getClass().getMethod("toBigInteger");
+        return (BigInteger) toBigIntegerMethod.invoke(valueObject);
+      } catch (final ReflectiveOperationException fallbackException) {
+        return BigInteger.ZERO;
+      }
+    }
   }
 
   /**

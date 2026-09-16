@@ -17,18 +17,20 @@ dependencies {
     compileOnly 'org.hyperledger.besu:besu-plugin-api:25.12.0'
     compileOnly 'org.hyperledger.besu:besu-datatypes:25.12.0'
     compileOnly 'org.hyperledger.besu:besu-evm:25.12.0'
+    compileOnly 'org.apache.tuweni:tuweni-bytes:2.1.0'
+    compileOnly 'org.apache.tuweni:tuweni-units:2.1.0'
     compileOnly 'org.bouncycastle:bcprov-jdk18on:1.78'
     compileOnly 'org.slf4j:slf4j-api:2.0.9'
 
     // Third-party dependencies bundled into plugin shadow JAR
-    implementation 'org.apache.tuweni:tuweni-bytes:2.1.0'
-    implementation 'org.apache.tuweni:tuweni-units:2.1.0'
     implementation 'com.google.guava:guava:33.0.0-jre'
 
     // Unit & Integration Test dependencies
     testImplementation 'org.hyperledger.besu:besu-plugin-api:25.12.0'
     testImplementation 'org.hyperledger.besu:besu-datatypes:25.12.0'
     testImplementation 'org.hyperledger.besu:besu-evm:25.12.0'
+    testImplementation 'org.apache.tuweni:tuweni-bytes:2.1.0'
+    testImplementation 'org.apache.tuweni:tuweni-units:2.1.0'
     testImplementation 'org.bouncycastle:bcprov-jdk18on:1.78'
     testImplementation 'org.slf4j:slf4j-api:2.0.9'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
@@ -51,7 +53,6 @@ shadowJar {
     archiveVersion.set('')
 
     relocate 'com.google.common', 'org.hyperledger.besu.plugin.permissioning.shadow.guava'
-    relocate 'org.apache.tuweni', 'org.hyperledger.besu.plugin.permissioning.shadow.tuweni'
 
     configurations = [project.configurations.runtimeClasspath]
     mergeServiceFiles()
