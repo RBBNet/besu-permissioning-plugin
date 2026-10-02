@@ -78,6 +78,8 @@ cp build/libs/besu-plugin-permissioning.jar /opt/besu/plugins/
 | `BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS` | Yes | — | Hex address of Account Ingress smart contract (e.g. `0x...8888`) |
 | `BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS` | Optional | — | Hex address of Node Ingress smart contract. If omitted, node permissioning operates in explicit fail-close mode. |
 | `BESU_PERMISSIONS_NODES_CONTRACT_VERSION` | Optional | `1` | Node contract interface version (`1` for V1 tripwire, `2` for V2 per-enode ABI-encoded bool). |
+
+Configuration is validated when the plugin registers. A missing `BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS`, or any invalid value, makes the plugin throw and **Besu aborts startup** with a message listing every problem. Do not enable `--plugin-continue-on-error`: with it, Besu would start **without** the plugin, that is, without any on-chain permissioning.
 | `BESU_PERMISSIONS_SIMULATION_GAS_LIMIT` | Optional | `3000000` | Gas limit allocated for in-memory contract simulation calls. |
 | `BESU_PERMISSIONS_FIXED_NODES` | Optional | — | Comma-separated enode URLs permitted while the node has not yet reached sync, in addition to `static-nodes.json` in the data path and `BESU_BOOTNODES`. See [Node permissioning during initial sync](#node-permissioning-during-initial-sync). |
 
