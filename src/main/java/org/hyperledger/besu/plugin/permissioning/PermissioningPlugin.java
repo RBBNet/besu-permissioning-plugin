@@ -166,37 +166,43 @@ public class PermissioningPlugin implements BesuPlugin {
     }
   }
 
-  private void setupMetrics(final MetricsSystem metricsSystem) {
+  /**
+   * Registers the plugin counters. Besu prefixes them with the category ("besu_permissioning_") and
+   * Prometheus appends "_total" to counters, so they are exposed as e.g. {@code
+   * besu_permissioning_transactions_checked_total}. Keep these names stable: operators build
+   * dashboards and alerts on them.
+   */
+  void setupMetrics(final MetricsSystem metricsSystem) {
     txCheckCounter =
         metricsSystem.createCounter(
             PermissioningMetricCategory.PERMISSIONING,
-            "onchain_transaction_check_count",
+            "transactions_checked",
             "Number of transactions checked by the on-chain permissioning plugin");
     txPermittedCounter =
         metricsSystem.createCounter(
             PermissioningMetricCategory.PERMISSIONING,
-            "onchain_transaction_check_count_permitted",
+            "transactions_permitted",
             "Number of transactions permitted by the on-chain permissioning plugin");
     txDeniedCounter =
         metricsSystem.createCounter(
             PermissioningMetricCategory.PERMISSIONING,
-            "onchain_transaction_check_count_denied",
+            "transactions_denied",
             "Number of transactions denied by the on-chain permissioning plugin");
 
     nodeCheckCounter =
         metricsSystem.createCounter(
             PermissioningMetricCategory.PERMISSIONING,
-            "onchain_node_check_count",
+            "nodes_checked",
             "Number of node connections checked");
     nodePermittedCounter =
         metricsSystem.createCounter(
             PermissioningMetricCategory.PERMISSIONING,
-            "onchain_node_check_count_permitted",
+            "nodes_permitted",
             "Number of node connections permitted");
     nodeDeniedCounter =
         metricsSystem.createCounter(
             PermissioningMetricCategory.PERMISSIONING,
-            "onchain_node_check_count_denied",
+            "nodes_denied",
             "Number of node connections denied");
     LOG.info("PermissioningPlugin metrics counters registered successfully.");
   }

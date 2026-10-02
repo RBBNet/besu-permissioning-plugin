@@ -16,15 +16,18 @@
 package org.hyperledger.besu.plugin.permissioning;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
@@ -36,8 +39,10 @@ import org.hyperledger.besu.plugin.data.EnodeURL;
 import org.hyperledger.besu.plugin.data.TransactionProcessingResult;
 import org.hyperledger.besu.plugin.data.TransactionSimulationResult;
 import org.hyperledger.besu.plugin.services.BlockchainService;
+import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.PermissioningService;
 import org.hyperledger.besu.plugin.services.TransactionSimulationService;
+import org.hyperledger.besu.plugin.services.metrics.Counter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -233,5 +238,34 @@ class PermissioningPluginTest {
     boolean result = nodeProvider.isConnectionPermitted(source, dest);
 
     assertTrue(result, "V2: both nodes permitted must return true");
+  }
+
+  @Test
+  void metricCategoryProducesTheBesuPermissioningPrefix() {
+    PermissioningMetricCategory category = PermissioningMetricCategory.PERMISSIONING;
+    assertEquals(
+        "besu_permissioning",
+        category.getApplicationPrefix().orElse("") + category.getName(),
+        "Exposed metric names must start with besu_permissioning_");
+  }
+
+  @Test
+  void countersAreRegisteredWithTheDocumentedNames() {
+    MetricsSystem metricsSystem = mock(MetricsSystem.class);
+    when(metricsSystem.createCounter(any(), any(), any())).thenReturn(mock(Counter.class));
+
+    new PermissioningPlugin().setupMetrics(metricsSystem);
+
+    for (String name :
+        List.of(
+            "transactions_checked",
+            "transactions_permitted",
+            "transactions_denied",
+            "nodes_checked",
+            "nodes_permitted",
+            "nodes_denied")) {
+      verify(metricsSystem)
+          .createCounter(eq(PermissioningMetricCategory.PERMISSIONING), eq(name), any());
+    }
   }
 }
