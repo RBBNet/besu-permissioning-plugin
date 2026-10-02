@@ -20,7 +20,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.CallParameter;
@@ -48,14 +47,6 @@ public class PermissioningPlugin implements BesuPlugin {
 
   private Address accountIngressAddress;
   private Address nodeIngressAddress;
-
-  private final AtomicReference<Address> accountRulesContractCache = new AtomicReference<>();
-  private final AtomicReference<Address> nodeRulesContractCache = new AtomicReference<>();
-  private volatile long lastAccountCacheUpdateBlock = -1;
-  private volatile long lastNodeCacheUpdateBlock = -1;
-
-  private final Object accountCacheLock = new Object();
-  private final Object nodeCacheLock = new Object();
 
   private int nodeContractVersion = 1;
   private long simulationGasLimit = DEFAULT_SIMULATION_GAS_LIMIT;
@@ -330,79 +321,6 @@ public class PermissioningPlugin implements BesuPlugin {
 
   boolean simulateAndGetBool(final Address target, final Bytes payload) {
     return callContract(target, payload).map(bytes -> !bytes.isZero()).orElse(false);
-  }
-
-  Address getAccountRulesAddress() {
-    var head = blockchainService.getChainHeadHeader();
-    long currentBlock = head.getNumber();
-
-    if (currentBlock > lastAccountCacheUpdateBlock || accountRulesContractCache.get() == null) {
-      synchronized (accountCacheLock) {
-        if (currentBlock > lastAccountCacheUpdateBlock || accountRulesContractCache.get() == null) {
-          Bytes payload =
-              Bytes.concatenate(
-                  PermissioningPluginFunctions.GET_CONTRACT_ADDRESS_SELECTOR,
-                  PermissioningPluginFunctions.RULES_NAME_KEY_BYTES);
-          Optional<Bytes> result = callContract(accountIngressAddress, payload);
-
-          if (result.isPresent()) {
-            Bytes bytes = result.get();
-            if (bytes.size() >= 32) {
-              Address resolved = Address.wrap(bytes.slice(12));
-              accountRulesContractCache.set(resolved);
-              lastAccountCacheUpdateBlock = currentBlock;
-              LOG.debug("Resolved AccountRules contract address: {}", resolved);
-            } else {
-              LOG.error(
-                  "Account Ingress returned malformed address data ({} bytes).", bytes.size());
-              accountRulesContractCache.set(Address.ZERO);
-              lastAccountCacheUpdateBlock = currentBlock;
-            }
-          } else {
-            LOG.error("Simulation to Account Ingress failed — caching sentinel zero address.");
-            accountRulesContractCache.set(Address.ZERO);
-            lastAccountCacheUpdateBlock = currentBlock;
-          }
-        }
-      }
-    }
-    return accountRulesContractCache.get();
-  }
-
-  Address getNodeRulesAddress() {
-    var head = blockchainService.getChainHeadHeader();
-    long currentBlock = head.getNumber();
-
-    if (currentBlock > lastNodeCacheUpdateBlock || nodeRulesContractCache.get() == null) {
-      synchronized (nodeCacheLock) {
-        if (currentBlock > lastNodeCacheUpdateBlock || nodeRulesContractCache.get() == null) {
-          Bytes payload =
-              Bytes.concatenate(
-                  PermissioningPluginFunctions.GET_CONTRACT_ADDRESS_SELECTOR,
-                  PermissioningPluginFunctions.RULES_NAME_KEY_BYTES);
-          Optional<Bytes> result = callContract(nodeIngressAddress, payload);
-
-          if (result.isPresent()) {
-            Bytes bytes = result.get();
-            if (bytes.size() >= 32) {
-              Address resolved = Address.wrap(bytes.slice(12));
-              nodeRulesContractCache.set(resolved);
-              lastNodeCacheUpdateBlock = currentBlock;
-              LOG.debug("Resolved NodeRules contract address: {}", resolved);
-            } else {
-              LOG.error("Node Ingress returned malformed address data ({} bytes).", bytes.size());
-              nodeRulesContractCache.set(Address.ZERO);
-              lastNodeCacheUpdateBlock = currentBlock;
-            }
-          } else {
-            LOG.error("Simulation to Node Ingress failed — caching sentinel zero address.");
-            nodeRulesContractCache.set(Address.ZERO);
-            lastNodeCacheUpdateBlock = currentBlock;
-          }
-        }
-      }
-    }
-    return nodeRulesContractCache.get();
   }
 
   // --- Package-private test harness mutators (VisibleForTesting) ---
