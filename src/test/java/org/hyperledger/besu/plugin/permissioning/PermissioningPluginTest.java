@@ -124,6 +124,26 @@ class PermissioningPluginTest {
   }
 
   @Test
+  void registerFailsWhenTheAccountIngressAddressIsTheZeroAddress() {
+    IllegalStateException e =
+        registerFails(
+            configWith(
+                PermissioningPlugin.ENV_ACCOUNTS_ADDRESS,
+                "0x0000000000000000000000000000000000000000"));
+    assertTrue(e.getMessage().contains("zero address"));
+  }
+
+  @Test
+  void registerFailsWhenTheNodeIngressAddressIsTheZeroAddress() {
+    IllegalStateException e =
+        registerFails(
+            configWith(
+                PermissioningPlugin.ENV_NODES_ADDRESS,
+                "0x0000000000000000000000000000000000000000"));
+    assertTrue(e.getMessage().contains("zero address"));
+  }
+
+  @Test
   void registerFailsWhenTheNodeIngressAddressIsInvalid() {
     registerFails(configWith(PermissioningPlugin.ENV_NODES_ADDRESS, "9999"));
   }

@@ -66,6 +66,9 @@ public class PermissioningPlugin implements BesuPlugin {
   /** Contract addresses must be given in full: Besu's Address parser left-pads short values. */
   private static final Pattern FULL_ADDRESS = Pattern.compile("^0x[0-9a-fA-F]{40}$");
 
+  /** The zero address never identifies an Ingress contract. */
+  private static final Pattern ZERO_ADDRESS = Pattern.compile("^0x0{40}$");
+
   /** Source of configuration values (the process environment in production). */
   private final Function<String, String> env;
 
@@ -159,7 +162,9 @@ public class PermissioningPlugin implements BesuPlugin {
     if (accountIngressEnv == null || accountIngressEnv.isBlank()) {
       errors.add(ENV_ACCOUNTS_ADDRESS + " is mandatory and is not set");
     } else {
-      if (FULL_ADDRESS.matcher(accountIngressEnv.trim()).matches()) {
+      if (ZERO_ADDRESS.matcher(accountIngressEnv.trim()).matches()) {
+        errors.add(ENV_ACCOUNTS_ADDRESS + " must not be the zero address");
+      } else if (FULL_ADDRESS.matcher(accountIngressEnv.trim()).matches()) {
         this.accountIngressAddress = Address.fromHexString(accountIngressEnv.trim());
         LOG.info("Account Permissioning Ingress Address set to: {}", accountIngressAddress);
       } else {
@@ -185,7 +190,9 @@ public class PermissioningPlugin implements BesuPlugin {
 
     String nodeIngressEnv = env.apply(ENV_NODES_ADDRESS);
     if (nodeIngressEnv != null && !nodeIngressEnv.isBlank()) {
-      if (FULL_ADDRESS.matcher(nodeIngressEnv.trim()).matches()) {
+      if (ZERO_ADDRESS.matcher(nodeIngressEnv.trim()).matches()) {
+        errors.add(ENV_NODES_ADDRESS + " must not be the zero address");
+      } else if (FULL_ADDRESS.matcher(nodeIngressEnv.trim()).matches()) {
         this.nodeIngressAddress = Address.fromHexString(nodeIngressEnv.trim());
         LOG.info("Node Permissioning Ingress Address set to: {}", nodeIngressAddress);
       } else {
