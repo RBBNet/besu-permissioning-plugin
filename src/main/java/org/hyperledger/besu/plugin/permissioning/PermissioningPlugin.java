@@ -15,12 +15,19 @@
 
 package org.hyperledger.besu.plugin.permissioning;
 
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.CallParameter;
@@ -28,12 +35,15 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.plugin.BesuPlugin;
 import org.hyperledger.besu.plugin.ServiceManager;
+import org.hyperledger.besu.plugin.data.EnodeURL;
 import org.hyperledger.besu.plugin.data.ProcessableBlockHeader;
+import org.hyperledger.besu.plugin.services.BesuConfiguration;
 import org.hyperledger.besu.plugin.services.BlockchainService;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.PermissioningService;
 import org.hyperledger.besu.plugin.services.TransactionSimulationService;
 import org.hyperledger.besu.plugin.services.metrics.Counter;
+import org.hyperledger.besu.plugin.services.sync.SynchronizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +69,12 @@ public class PermissioningPlugin implements BesuPlugin {
 
   private int nodeContractVersion = 1;
   private long simulationGasLimit = DEFAULT_SIMULATION_GAS_LIMIT;
+
+  private static final Pattern ENODE_ID_PATTERN = Pattern.compile("enode://([0-9a-fA-F]{128})");
+
+  private volatile SynchronizationService synchronizationService;
+  private volatile Set<Bytes> fixedNodeIds = Set.of();
+  private volatile boolean reachedSync = false;
 
   private Counter txCheckCounter;
   private Counter txPermittedCounter;
@@ -207,6 +223,12 @@ public class PermissioningPlugin implements BesuPlugin {
 
     if (serviceManager != null) {
       serviceManager.getService(MetricsSystem.class).ifPresent(this::setupMetrics);
+      this.synchronizationService =
+          serviceManager.getService(SynchronizationService.class).orElse(null);
+      if (synchronizationService == null) {
+        LOG.warn("SynchronizationService unavailable. Pre-sync node permissioning disabled.");
+      }
+      loadFixedNodes();
     }
 
     if (accountIngressAddress == null) {
@@ -330,6 +352,60 @@ public class PermissioningPlugin implements BesuPlugin {
 
   boolean simulateAndGetBool(final Address target, final Bytes payload) {
     return callContract(target, payload).map(bytes -> !bytes.isZero()).orElse(false);
+  }
+
+  void loadFixedNodes() {
+    Set<Bytes> ids = new HashSet<>();
+    addEnodeIds(System.getenv("BESU_BOOTNODES"), ids);
+    addEnodeIds(System.getenv("BESU_PERMISSIONS_FIXED_NODES"), ids);
+    serviceManager
+        .getService(BesuConfiguration.class)
+        .ifPresent(
+            config -> {
+              Path staticNodes = config.getDataPath().resolve("static-nodes.json");
+              if (Files.exists(staticNodes)) {
+                try {
+                  addEnodeIds(Files.readString(staticNodes), ids);
+                } catch (IOException e) {
+                  LOG.error("Could not read {}: {}", staticNodes, e.getMessage());
+                }
+              }
+            });
+    this.fixedNodeIds = Set.copyOf(ids);
+    LOG.info("Loaded {} fixed node(s) for pre-sync node permissioning.", fixedNodeIds.size());
+  }
+
+  private static void addEnodeIds(final String text, final Set<Bytes> ids) {
+    if (text == null) {
+      return;
+    }
+    Matcher matcher = ENODE_ID_PATTERN.matcher(text);
+    while (matcher.find()) {
+      ids.add(Bytes.fromHexString(matcher.group(1)));
+    }
+  }
+
+  boolean hasFixedNodes() {
+    return !fixedNodeIds.isEmpty();
+  }
+
+  boolean isFixedNode(final EnodeURL enode) {
+    return fixedNodeIds.contains(enode.getNodeId());
+  }
+
+  boolean hasReachedSync() {
+    if (reachedSync) {
+      return true;
+    }
+    SynchronizationService sync = synchronizationService;
+    if (sync == null) {
+      return true;
+    }
+    if (sync.getBestPeerChainHead().isPresent() && sync.isInSync()) {
+      reachedSync = true;
+      LOG.info("Node reached sync. Node permissioning is now decided by the NodeRules contract.");
+    }
+    return reachedSync;
   }
 
   Address getAccountRulesAddress() {
