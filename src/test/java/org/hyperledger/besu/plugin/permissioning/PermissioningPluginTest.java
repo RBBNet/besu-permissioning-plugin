@@ -16,10 +16,13 @@
 package org.hyperledger.besu.plugin.permissioning;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +43,7 @@ import org.hyperledger.besu.plugin.services.PermissioningService;
 import org.hyperledger.besu.plugin.services.TransactionSimulationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class PermissioningPluginTest {
 
@@ -101,7 +105,7 @@ class PermissioningPluginTest {
   }
 
   @Test
-  void isPermittedReturnsFalseWhenRulesResolutionFails() {
+  void isPermittedReturnsFalseWhenIngressCallFails() {
     when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
         .thenReturn(Optional.empty());
 
@@ -116,7 +120,7 @@ class PermissioningPluginTest {
     when(tx.getSender()).thenReturn(VALID_ADDRESS);
 
     boolean result = txProvider.isPermitted(tx);
-    assertFalse(result, "Must deny when Rules contract address resolution fails (fail-close)");
+    assertFalse(result, "Must deny when the Account Ingress call fails (fail-close)");
   }
 
   @Test
@@ -134,16 +138,6 @@ class PermissioningPluginTest {
 
   @Test
   void isConnectionPermittedHandlesV1TripwireResponse() throws UnknownHostException {
-    Bytes ingressOutput =
-        Bytes.concatenate(
-            Bytes.wrap(new byte[12]),
-            Address.fromHexString("0x9999999999999999999999999999999999999999"));
-    TransactionProcessingResult ingressProcResult = mock(TransactionProcessingResult.class);
-    when(ingressProcResult.isSuccessful()).thenReturn(true);
-    when(ingressProcResult.getOutput()).thenReturn(ingressOutput);
-    TransactionSimulationResult ingressSimResult =
-        new TransactionSimulationResult(mock(Transaction.class), ingressProcResult);
-
     TransactionProcessingResult connProcResult = mock(TransactionProcessingResult.class);
     when(connProcResult.isSuccessful()).thenReturn(true);
     when(connProcResult.getOutput()).thenReturn(PermissioningPluginFunctions.TRUE_RESPONSE);
@@ -151,7 +145,6 @@ class PermissioningPluginTest {
         new TransactionSimulationResult(mock(Transaction.class), connProcResult);
 
     when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
-        .thenReturn(Optional.of(ingressSimResult))
         .thenReturn(Optional.of(connSimResult));
 
     Bytes nodeId = Bytes.concatenate(Bytes.random(32), Bytes.random(32));
@@ -181,16 +174,6 @@ class PermissioningPluginTest {
 
   @Test
   void isConnectionPermittedV2UsesPerEnodeCalls() throws UnknownHostException {
-    Bytes ingressOutput =
-        Bytes.concatenate(
-            Bytes.wrap(new byte[12]),
-            Address.fromHexString("0x9999999999999999999999999999999999999999"));
-    TransactionProcessingResult ingressProcResult = mock(TransactionProcessingResult.class);
-    when(ingressProcResult.isSuccessful()).thenReturn(true);
-    when(ingressProcResult.getOutput()).thenReturn(ingressOutput);
-    TransactionSimulationResult ingressSimResult =
-        new TransactionSimulationResult(mock(Transaction.class), ingressProcResult);
-
     TransactionProcessingResult srcProcResult = mock(TransactionProcessingResult.class);
     when(srcProcResult.isSuccessful()).thenReturn(true);
     when(srcProcResult.getOutput()).thenReturn(PermissioningPluginFunctions.V2_TRUE_RESPONSE);
@@ -204,7 +187,6 @@ class PermissioningPluginTest {
         new TransactionSimulationResult(mock(Transaction.class), dstProcResult);
 
     when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
-        .thenReturn(Optional.of(ingressSimResult))
         .thenReturn(Optional.of(srcSimResult))
         .thenReturn(Optional.of(dstSimResult));
 
@@ -233,5 +215,118 @@ class PermissioningPluginTest {
     boolean result = nodeProvider.isConnectionPermitted(source, dest);
 
     assertTrue(result, "V2: both nodes permitted must return true");
+  }
+
+  private TransactionSimulationResult simulationReturning(final Bytes output) {
+    TransactionProcessingResult procResult = mock(TransactionProcessingResult.class);
+    when(procResult.isSuccessful()).thenReturn(true);
+    when(procResult.getOutput()).thenReturn(output);
+    return new TransactionSimulationResult(mock(Transaction.class), procResult);
+  }
+
+  private static EnodeURL enode(final int port) throws UnknownHostException {
+    EnodeURL enode = mock(EnodeURL.class);
+    when(enode.getNodeId()).thenReturn(Bytes.concatenate(Bytes.random(32), Bytes.random(32)));
+    when(enode.getIp()).thenReturn(InetAddress.getByAddress(new byte[] {127, 0, 0, 1}));
+    when(enode.getListeningPortOrZero()).thenReturn(port);
+    return enode;
+  }
+
+  @Test
+  void transactionIsCheckedWithASingleCallToTheAccountIngress() {
+    Address accountIngress = Address.fromHexString("0x0000000000000000000000000000000000008888");
+    TransactionSimulationResult resposta =
+        simulationReturning(PermissioningPluginFunctions.V2_TRUE_RESPONSE);
+    when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
+        .thenReturn(Optional.of(resposta));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setAccountIngressAddress(accountIngress);
+    plugin.setSimulationService(simulationService);
+    plugin.setBlockchainService(blockchainService);
+
+    Transaction tx = mock(Transaction.class);
+    when(tx.getSender()).thenReturn(VALID_ADDRESS);
+    doReturn(Optional.empty()).when(tx).getTo();
+    when(tx.getPayload()).thenReturn(Bytes.EMPTY);
+
+    assertTrue(new OnChainTransactionPermissioningProvider(plugin).isPermitted(tx));
+
+    ArgumentCaptor<CallParameter> call = ArgumentCaptor.forClass(CallParameter.class);
+    verify(simulationService, times(1)).simulate(call.capture(), any(), any(), any(), any());
+    assertEquals(Optional.of(accountIngress), call.getValue().getTo());
+    assertEquals(
+        PermissioningPluginFunctions.TRANSACTION_ALLOWED_SELECTOR,
+        call.getValue().getPayload().orElseThrow().slice(0, 4));
+  }
+
+  @Test
+  void transactionIsDeniedWhenTheAccountIngressReturnsFalse() {
+    TransactionSimulationResult resposta =
+        simulationReturning(PermissioningPluginFunctions.V2_FALSE_RESPONSE);
+    when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
+        .thenReturn(Optional.of(resposta));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setAccountIngressAddress(VALID_ADDRESS);
+    plugin.setSimulationService(simulationService);
+    plugin.setBlockchainService(blockchainService);
+
+    Transaction tx = mock(Transaction.class);
+    when(tx.getSender()).thenReturn(VALID_ADDRESS);
+    doReturn(Optional.empty()).when(tx).getTo();
+    when(tx.getPayload()).thenReturn(Bytes.EMPTY);
+
+    assertFalse(new OnChainTransactionPermissioningProvider(plugin).isPermitted(tx));
+  }
+
+  /**
+   * Regression test for a node syncing from genesis: before the permissioning contracts are
+   * deployed, the Ingress has no Rules contract set and (in networks such as RBB) answers
+   * "allowed". The plugin must follow the Ingress answer instead of resolving the Rules address and
+   * rejecting because it is zero.
+   */
+  @Test
+  void connectionFollowsTheNodeIngressAnswerWhenNoRulesContractIsSet() throws UnknownHostException {
+    Address nodeIngress = Address.fromHexString("0x0000000000000000000000000000000000009999");
+    TransactionSimulationResult resposta =
+        simulationReturning(PermissioningPluginFunctions.TRUE_RESPONSE);
+    when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
+        .thenReturn(Optional.of(resposta));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setNodeIngressAddress(nodeIngress);
+    plugin.setNodeContractVersion(1);
+    plugin.setSimulationService(simulationService);
+    plugin.setBlockchainService(blockchainService);
+
+    assertTrue(
+        new OnChainNodePermissioningProvider(plugin)
+            .isConnectionPermitted(enode(30303), enode(30304)));
+
+    ArgumentCaptor<CallParameter> call = ArgumentCaptor.forClass(CallParameter.class);
+    verify(simulationService, times(1)).simulate(call.capture(), any(), any(), any(), any());
+    assertEquals(Optional.of(nodeIngress), call.getValue().getTo());
+    assertEquals(
+        PermissioningPluginFunctions.CONNECTION_ALLOWED_SELECTOR,
+        call.getValue().getPayload().orElseThrow().slice(0, 4));
+  }
+
+  @Test
+  void connectionIsDeniedWhenTheNodeIngressReturnsTheDeniedTripwire() throws UnknownHostException {
+    TransactionSimulationResult resposta =
+        simulationReturning(PermissioningPluginFunctions.FALSE_RESPONSE);
+    when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
+        .thenReturn(Optional.of(resposta));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setNodeIngressAddress(VALID_ADDRESS);
+    plugin.setNodeContractVersion(1);
+    plugin.setSimulationService(simulationService);
+    plugin.setBlockchainService(blockchainService);
+
+    assertFalse(
+        new OnChainNodePermissioningProvider(plugin)
+            .isConnectionPermitted(enode(30303), enode(30304)));
   }
 }
