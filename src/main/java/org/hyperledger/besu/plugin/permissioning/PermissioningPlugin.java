@@ -100,18 +100,26 @@ public class PermissioningPlugin implements BesuPlugin {
             });
   }
 
+  /**
+   * Reads the configuration from the environment. A missing or invalid mandatory setting throws, so
+   * that Besu aborts startup (unless {@code --plugin-continue-on-error} is enabled) instead of
+   * running in a degraded, fail-closed state that rejects even valid blocks.
+   */
   void configureFromEnvironment() {
     String accountIngressEnv = System.getenv("BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS");
-    if (accountIngressEnv != null && !accountIngressEnv.isEmpty()) {
-      try {
-        this.accountIngressAddress = Address.fromHexString(accountIngressEnv);
-        LOG.info("Account Permissioning Ingress Address set to: {}", accountIngressAddress);
-      } catch (IllegalArgumentException e) {
-        LOG.error("Invalid Account Ingress Address format. Fail-close activated for transactions.");
-        this.accountIngressAddress = null;
-      }
-    } else {
-      LOG.warn("Missing BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS environment variable.");
+    if (accountIngressEnv == null || accountIngressEnv.isEmpty()) {
+      throw new IllegalStateException(
+          "On-Chain Permissioning Plugin: invalid configuration — BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS is mandatory and is not set");
+    }
+    try {
+      this.accountIngressAddress = Address.fromHexString(accountIngressEnv);
+      LOG.info("Account Permissioning Ingress Address set to: {}", accountIngressAddress);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalStateException(
+          "On-Chain Permissioning Plugin: invalid configuration — BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS="
+              + accountIngressEnv
+              + " is not a valid address",
+          e);
     }
 
     String nodeContractVersionEnv = System.getenv("BESU_PERMISSIONS_NODES_CONTRACT_VERSION");
@@ -209,10 +217,6 @@ public class PermissioningPlugin implements BesuPlugin {
       serviceManager.getService(MetricsSystem.class).ifPresent(this::setupMetrics);
     }
 
-    if (accountIngressAddress == null) {
-      LOG.error(
-          "On-Chain Permissioning Plugin Error: Account Ingress Address is unconfigured or invalid. Fail-close active.");
-    }
     if (nodeIngressAddress == null) {
       LOG.warn(
           "On-Chain Permissioning Plugin Warning: Node Ingress Address is unconfigured. Node connections will be rejected.");

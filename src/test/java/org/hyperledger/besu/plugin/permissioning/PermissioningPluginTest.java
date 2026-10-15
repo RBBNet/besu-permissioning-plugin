@@ -17,14 +17,19 @@ package org.hyperledger.besu.plugin.permissioning;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
 import org.hyperledger.besu.datatypes.Address;
@@ -38,11 +43,14 @@ import org.hyperledger.besu.plugin.data.TransactionSimulationResult;
 import org.hyperledger.besu.plugin.services.BlockchainService;
 import org.hyperledger.besu.plugin.services.PermissioningService;
 import org.hyperledger.besu.plugin.services.TransactionSimulationService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PermissioningPluginTest {
 
+  private static final String ACCOUNTS_CONTRACT_ADDRESS_ENV =
+      "BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS";
   private static final Address VALID_ADDRESS =
       Address.fromHexString("0x1234567890123456789012345678901234567890");
 
@@ -68,8 +76,51 @@ class PermissioningPluginTest {
     when(chainHead.getNumber()).thenReturn(100L);
   }
 
+  @AfterEach
+  void clearEnvironment() throws Exception {
+    setEnv(ACCOUNTS_CONTRACT_ADDRESS_ENV, null);
+  }
+
+  /** Sets an environment variable seen by {@link System#getenv} (requires the test JVM opens). */
+  private static void setEnv(final String key, final String value) throws Exception {
+    Map<String, String> env = System.getenv();
+    Field field = env.getClass().getDeclaredField("m");
+    field.setAccessible(true);
+    Map<String, String> backing = new HashMap<>((Map<String, String>) field.get(env));
+    if (value == null) {
+      backing.remove(key);
+    } else {
+      backing.put(key, value);
+    }
+    field.set(env, Collections.unmodifiableMap(backing));
+  }
+
   @Test
-  void registerWithValidServices() {
+  void registerFailsWhenTheAccountIngressAddressIsMissing() throws Exception {
+    when(serviceManager.getService(PermissioningService.class))
+        .thenReturn(Optional.of(permissioningService));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    IllegalStateException e =
+        assertThrows(IllegalStateException.class, () -> plugin.register(serviceManager));
+    assertTrue(
+        e.getMessage().contains(ACCOUNTS_CONTRACT_ADDRESS_ENV),
+        "Error must name the missing mandatory variable");
+  }
+
+  @Test
+  void registerFailsWhenTheAccountIngressAddressIsInvalid() throws Exception {
+    setEnv(ACCOUNTS_CONTRACT_ADDRESS_ENV, "0xnot-an-address");
+    when(serviceManager.getService(PermissioningService.class))
+        .thenReturn(Optional.of(permissioningService));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    assertThrows(IllegalStateException.class, () -> plugin.register(serviceManager));
+  }
+
+  @Test
+  void registerWithValidServices() throws Exception {
+    setEnv(ACCOUNTS_CONTRACT_ADDRESS_ENV, "0x1234567890123456789012345678901234567890");
     when(serviceManager.getService(PermissioningService.class))
         .thenReturn(Optional.of(permissioningService));
 
