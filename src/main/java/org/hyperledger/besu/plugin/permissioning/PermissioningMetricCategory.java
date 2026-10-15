@@ -33,8 +33,13 @@ public enum PermissioningMetricCategory implements MetricCategory {
     return name;
   }
 
+  /**
+   * Same application prefix as Besu's own categories ({@code BesuMetricCategory}): Besu
+   * concatenates prefix and category name, so the trailing underscore is required to obtain {@code
+   * besu_permissioning_...} instead of {@code besupermissioning_...}.
+   */
   @Override
   public Optional<String> getApplicationPrefix() {
-    return Optional.of("besu");
+    return Optional.of("besu_");
   }
 }

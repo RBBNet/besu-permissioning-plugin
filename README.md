@@ -10,7 +10,11 @@ It restores and modernizes the on-chain permissioning capabilities using an Ingr
 - **Node Connection Permissioning:** Validates P2P connection handshakes between nodes supporting both V1 tripwire smart contracts (`connectionAllowed(bytes32,...)`) and V2 per-enode contracts (`connectionAllowed(string,string,uint16)`).
 - **In-Memory EVM Simulation:** Queries smart contract state using `TransactionSimulationService` against the pending/latest block head — zero external HTTP dependencies, zero state mutations.
 - **Fail-Close Security:** Strict fail-close design; any configuration error, invalid ABI payload, or simulation exception automatically rejects unauthorized transactions and node connection attempts.
-- **Prometheus Metrics:** Exposes transaction and node connection permissioning counters (`permitted`, `denied`, `total_checked`).
+- **Prometheus Metrics:** Exposes transaction and node connection permissioning counters:
+  - `besu_permissioning_transactions_checked_total`, `besu_permissioning_transactions_permitted_total`, `besu_permissioning_transactions_denied_total`
+  - `besu_permissioning_nodes_checked_total`, `besu_permissioning_nodes_permitted_total`, `besu_permissioning_nodes_denied_total`
+
+  Transaction checks happen both when a transaction enters the pool and when a block containing it is imported, so a single permitted transaction is usually counted more than once.
 - **Multi-Version Besu Compatibility:** Compatible with Hyperledger Besu 25.12.0+ and 26.x.
 
 ## Architecture
