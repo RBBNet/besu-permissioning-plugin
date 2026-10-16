@@ -51,6 +51,24 @@ class OnChainNodePermissioningProvider implements NodeConnectionPermissioningPro
       return false;
     }
 
+    if (plugin.hasFixedNodes() && !plugin.hasReachedSync()) {
+      boolean permitted = plugin.isFixedNode(destinationEnode);
+      if (permitted) {
+        if (plugin.getNodePermittedCounter() != null) {
+          plugin.getNodePermittedCounter().inc();
+        }
+      } else {
+        LOG.debug(
+            "PermissioningPlugin: pre-sync, refusing non-fixed connection {} -> {}",
+            sourceEnode,
+            destinationEnode);
+        if (plugin.getNodeDeniedCounter() != null) {
+          plugin.getNodeDeniedCounter().inc();
+        }
+      }
+      return permitted;
+    }
+
     try {
       Address rulesAddress = plugin.getNodeRulesAddress();
       if (rulesAddress == null || rulesAddress.equals(Address.ZERO)) {
