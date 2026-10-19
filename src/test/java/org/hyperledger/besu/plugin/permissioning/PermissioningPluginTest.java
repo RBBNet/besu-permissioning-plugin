@@ -25,8 +25,10 @@ import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.CallParameter;
 import org.hyperledger.besu.datatypes.Transaction;
@@ -233,5 +235,66 @@ class PermissioningPluginTest {
     boolean result = nodeProvider.isConnectionPermitted(source, dest);
 
     assertTrue(result, "V2: both nodes permitted must return true");
+  }
+
+  // --- transactionAllowed output validation (#9) ---
+
+  private PermissioningPlugin pluginWithSimulatedOutput(final Bytes output) {
+    TransactionProcessingResult processingResult = mock(TransactionProcessingResult.class);
+    when(processingResult.isSuccessful()).thenReturn(true);
+    when(processingResult.getOutput()).thenReturn(output);
+    when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
+        .thenReturn(
+            Optional.of(
+                new TransactionSimulationResult(mock(Transaction.class), processingResult)));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setSimulationService(simulationService);
+    plugin.setBlockchainService(blockchainService);
+    return plugin;
+  }
+
+  @Test
+  void simulateAndGetBoolPermitsAbiTrue() {
+    PermissioningPlugin plugin =
+        pluginWithSimulatedOutput(PermissioningPluginFunctions.V2_TRUE_RESPONSE);
+    assertTrue(plugin.simulateAndGetBool(VALID_ADDRESS, Bytes.EMPTY));
+  }
+
+  @Test
+  void simulateAndGetBoolDeniesAbiFalse() {
+    PermissioningPlugin plugin =
+        pluginWithSimulatedOutput(PermissioningPluginFunctions.V2_FALSE_RESPONSE);
+    assertFalse(plugin.simulateAndGetBool(VALID_ADDRESS, Bytes.EMPTY));
+  }
+
+  @Test
+  void simulateAndGetBoolDeniesFailedCall() {
+    when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setSimulationService(simulationService);
+    plugin.setBlockchainService(blockchainService);
+
+    assertFalse(plugin.simulateAndGetBool(VALID_ADDRESS, Bytes.EMPTY));
+  }
+
+  @Test
+  void simulateAndGetBoolDeniesMalformedOutput() {
+    Bytes abiTrue = PermissioningPluginFunctions.V2_TRUE_RESPONSE;
+    List<Bytes> malformedOutputs =
+        List.of(
+            Bytes.EMPTY,
+            Bytes.of(1),
+            Bytes.of(2),
+            Bytes32.leftPad(Bytes.of(2)),
+            PermissioningPluginFunctions.TRUE_RESPONSE,
+            Bytes.concatenate(abiTrue, abiTrue));
+
+    for (Bytes output : malformedOutputs) {
+      assertFalse(
+          pluginWithSimulatedOutput(output).simulateAndGetBool(VALID_ADDRESS, Bytes.EMPTY),
+          "Malformed output must be denied: " + output);
+    }
   }
 }
