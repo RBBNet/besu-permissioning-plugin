@@ -16,17 +16,26 @@
 package org.hyperledger.besu.plugin.permissioning;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.spec.ECPoint;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.CallParameter;
 import org.hyperledger.besu.datatypes.Transaction;
@@ -36,8 +45,11 @@ import org.hyperledger.besu.plugin.data.EnodeURL;
 import org.hyperledger.besu.plugin.data.TransactionProcessingResult;
 import org.hyperledger.besu.plugin.data.TransactionSimulationResult;
 import org.hyperledger.besu.plugin.services.BlockchainService;
+import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.PermissioningService;
 import org.hyperledger.besu.plugin.services.TransactionSimulationService;
+import org.hyperledger.besu.plugin.services.metrics.Counter;
+import org.hyperledger.besu.plugin.services.sync.SynchronizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -233,5 +245,183 @@ class PermissioningPluginTest {
     boolean result = nodeProvider.isConnectionPermitted(source, dest);
 
     assertTrue(result, "V2: both nodes permitted must return true");
+  }
+
+  // --- Pre-sync node permissioning (#8) ---
+
+  private static final Bytes LOCAL_ID = Bytes.fromHexString("0x" + "11".repeat(64));
+  private static final Bytes FIXED_ID = Bytes.fromHexString("0x" + "22".repeat(64));
+  private static final Bytes OTHER_ID = Bytes.fromHexString("0x" + "33".repeat(64));
+
+  private Counter nodePermittedCounter;
+  private Counter nodeDeniedCounter;
+
+  private static EnodeURL enodeWithId(final Bytes nodeId) {
+    EnodeURL enode = mock(EnodeURL.class);
+    when(enode.getNodeId()).thenReturn(nodeId);
+    when(enode.getIp()).thenReturn(InetAddress.getLoopbackAddress());
+    when(enode.getListeningPortOrZero()).thenReturn(30303);
+    return enode;
+  }
+
+  private static SynchronizationService syncService(final boolean hasPeer, final boolean inSync) {
+    Optional<Long> bestPeerHead = hasPeer ? Optional.of(100L) : Optional.empty();
+    SynchronizationService sync = mock(SynchronizationService.class);
+    when(sync.getBestPeerChainHead()).thenReturn(bestPeerHead);
+    when(sync.isInSync()).thenReturn(inSync);
+    return sync;
+  }
+
+  /** Started plugin with node counters, not yet in sync, with FIXED_ID as the only fixed node. */
+  private PermissioningPlugin preSyncPlugin() {
+    nodePermittedCounter = mock(Counter.class);
+    nodeDeniedCounter = mock(Counter.class);
+    MetricsSystem metricsSystem = mock(MetricsSystem.class);
+    when(metricsSystem.createCounter(any(), contains("permitted"), any()))
+        .thenReturn(nodePermittedCounter);
+    when(metricsSystem.createCounter(any(), contains("denied"), any()))
+        .thenReturn(nodeDeniedCounter);
+    when(serviceManager.getService(MetricsSystem.class)).thenReturn(Optional.of(metricsSystem));
+
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.register(serviceManager);
+    plugin.start();
+    plugin.setNodeIngressAddress(VALID_ADDRESS);
+    plugin.setSynchronizationService(syncService(false, false));
+    plugin.setFixedNodes(Set.of(FIXED_ID), LOCAL_ID);
+    return plugin;
+  }
+
+  @Test
+  void addEnodeIdsIgnoresNullAndEmptyText() {
+    Set<Bytes> ids = new HashSet<>();
+    PermissioningPlugin.addEnodeIds(null, ids);
+    PermissioningPlugin.addEnodeIds("", ids);
+    assertTrue(ids.isEmpty());
+  }
+
+  @Test
+  void addEnodeIdsParsesSeveralSeparatorsAndMixedCaseHex() {
+    String text =
+        "enode://"
+            + "AB".repeat(64)
+            + "@10.0.0.1:30303,enode://"
+            + "cd".repeat(64)
+            + "@host:30303 [\"enode://"
+            + "eF".repeat(64)
+            + "@node:30303\"]\n"
+            + "enode://1234@too-short:30303";
+    Set<Bytes> ids = new HashSet<>();
+    PermissioningPlugin.addEnodeIds(text, ids);
+
+    assertEquals(
+        Set.of(
+            Bytes.fromHexString("0x" + "ab".repeat(64)),
+            Bytes.fromHexString("0x" + "cd".repeat(64)),
+            Bytes.fromHexString("0x" + "ef".repeat(64))),
+        ids);
+  }
+
+  @Test
+  void toNodeIdConcatenatesLeftPaddedCoordinates() {
+    Bytes nodeId = PermissioningPlugin.toNodeId(new ECPoint(BigInteger.ONE, BigInteger.TWO));
+    assertEquals(
+        Bytes.concatenate(Bytes32.leftPad(Bytes.of(1)), Bytes32.leftPad(Bytes.of(2))), nodeId);
+  }
+
+  @Test
+  void setFixedNodesRemovesTheLocalNode() {
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setFixedNodes(Set.of(FIXED_ID, LOCAL_ID), LOCAL_ID);
+    assertTrue(plugin.isFixedNode(enodeWithId(FIXED_ID)));
+    assertFalse(plugin.isFixedNode(enodeWithId(LOCAL_ID)));
+  }
+
+  @Test
+  void setFixedNodesDisablesPreSyncPathWhenLocalNodeIdIsUnknown() {
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setFixedNodes(Set.of(FIXED_ID), null);
+    assertFalse(plugin.hasFixedNodes());
+  }
+
+  @Test
+  void hasReachedSyncWithoutSynchronizationServiceKeepsContractBehaviour() {
+    assertTrue(new PermissioningPlugin().hasReachedSync());
+  }
+
+  @Test
+  void hasReachedSyncIsFalseWithoutBestPeerHead() {
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setSynchronizationService(syncService(false, true));
+    assertFalse(plugin.hasReachedSync(), "Besu may report in-sync with no peers at startup");
+  }
+
+  @Test
+  void hasReachedSyncIsFalseWhileSyncing() {
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setSynchronizationService(syncService(true, false));
+    assertFalse(plugin.hasReachedSync());
+  }
+
+  @Test
+  void hasReachedSyncLatchesAndNeverReopens() {
+    SynchronizationService sync = syncService(true, true);
+    PermissioningPlugin plugin = new PermissioningPlugin();
+    plugin.setSynchronizationService(sync);
+    assertTrue(plugin.hasReachedSync());
+
+    when(sync.isInSync()).thenReturn(false);
+    when(sync.getBestPeerChainHead()).thenReturn(Optional.empty());
+    assertTrue(plugin.hasReachedSync(), "The latch must never reopen");
+  }
+
+  @Test
+  void preSyncPermitsOutboundToFixedNodeWithoutCallingContract() {
+    OnChainNodePermissioningProvider provider =
+        new OnChainNodePermissioningProvider(preSyncPlugin());
+
+    assertTrue(provider.isConnectionPermitted(enodeWithId(LOCAL_ID), enodeWithId(FIXED_ID)));
+    verify(nodePermittedCounter).inc();
+    verify(nodeDeniedCounter, never()).inc();
+    verify(simulationService, never())
+        .simulate(any(CallParameter.class), any(), any(), any(), any());
+  }
+
+  @Test
+  void preSyncDeniesOutboundToNonFixedNode() {
+    OnChainNodePermissioningProvider provider =
+        new OnChainNodePermissioningProvider(preSyncPlugin());
+
+    assertFalse(provider.isConnectionPermitted(enodeWithId(LOCAL_ID), enodeWithId(OTHER_ID)));
+    verify(nodeDeniedCounter).inc();
+    verify(nodePermittedCounter, never()).inc();
+    verify(simulationService, never())
+        .simulate(any(CallParameter.class), any(), any(), any(), any());
+  }
+
+  @Test
+  void preSyncDeniesInboundEvenWhenLocalNodeIsInSharedStaticNodes() {
+    PermissioningPlugin plugin = preSyncPlugin();
+    plugin.setFixedNodes(Set.of(FIXED_ID, LOCAL_ID), LOCAL_ID);
+    OnChainNodePermissioningProvider provider = new OnChainNodePermissioningProvider(plugin);
+
+    // Inbound: Besu passes (remote, local)
+    assertFalse(provider.isConnectionPermitted(enodeWithId(OTHER_ID), enodeWithId(LOCAL_ID)));
+    assertFalse(provider.isConnectionPermitted(enodeWithId(FIXED_ID), enodeWithId(LOCAL_ID)));
+  }
+
+  @Test
+  void afterSyncTheContractDecides() {
+    when(simulationService.simulate(any(CallParameter.class), any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
+    PermissioningPlugin plugin = preSyncPlugin();
+    plugin.setSynchronizationService(syncService(true, true));
+    OnChainNodePermissioningProvider provider = new OnChainNodePermissioningProvider(plugin);
+
+    assertFalse(
+        provider.isConnectionPermitted(enodeWithId(LOCAL_ID), enodeWithId(FIXED_ID)),
+        "After sync, a fixed node is no longer permitted without the contract");
+    verify(simulationService, atLeastOnce())
+        .simulate(any(CallParameter.class), any(), any(), any(), any());
   }
 }

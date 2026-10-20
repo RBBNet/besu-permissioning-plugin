@@ -15,25 +15,39 @@
 
 package org.hyperledger.besu.plugin.permissioning;
 
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.spec.ECPoint;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.tuweni.bytes.Bytes;
+import org.apache.tuweni.units.bigints.UInt256;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.CallParameter;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.hyperledger.besu.plugin.BesuPlugin;
 import org.hyperledger.besu.plugin.ServiceManager;
+import org.hyperledger.besu.plugin.data.EnodeURL;
 import org.hyperledger.besu.plugin.data.ProcessableBlockHeader;
+import org.hyperledger.besu.plugin.services.BesuConfiguration;
 import org.hyperledger.besu.plugin.services.BlockchainService;
 import org.hyperledger.besu.plugin.services.MetricsSystem;
 import org.hyperledger.besu.plugin.services.PermissioningService;
+import org.hyperledger.besu.plugin.services.SecurityModuleService;
 import org.hyperledger.besu.plugin.services.TransactionSimulationService;
 import org.hyperledger.besu.plugin.services.metrics.Counter;
+import org.hyperledger.besu.plugin.services.sync.SynchronizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +73,13 @@ public class PermissioningPlugin implements BesuPlugin {
 
   private int nodeContractVersion = 1;
   private long simulationGasLimit = DEFAULT_SIMULATION_GAS_LIMIT;
+  private static final String DEFAULT_SECURITY_MODULE = "localfile";
+
+  private static final Pattern ENODE_ID_PATTERN = Pattern.compile("enode://([0-9a-fA-F]{128})");
+
+  private volatile SynchronizationService synchronizationService;
+  private volatile Set<Bytes> fixedNodeIds = Set.of();
+  private final AtomicBoolean reachedSync = new AtomicBoolean(false);
 
   private Counter txCheckCounter;
   private Counter txPermittedCounter;
@@ -207,6 +228,12 @@ public class PermissioningPlugin implements BesuPlugin {
 
     if (serviceManager != null) {
       serviceManager.getService(MetricsSystem.class).ifPresent(this::setupMetrics);
+      this.synchronizationService =
+          serviceManager.getService(SynchronizationService.class).orElse(null);
+      if (synchronizationService == null) {
+        LOG.warn("SynchronizationService unavailable. Pre-sync node permissioning disabled.");
+      }
+      loadFixedNodes();
     }
 
     if (accountIngressAddress == null) {
@@ -332,6 +359,107 @@ public class PermissioningPlugin implements BesuPlugin {
     return callContract(target, payload).map(bytes -> !bytes.isZero()).orElse(false);
   }
 
+  void loadFixedNodes() {
+    Set<Bytes> ids = new HashSet<>();
+    addEnodeIds(System.getenv("BESU_BOOTNODES"), ids);
+    addEnodeIds(System.getenv("BESU_PERMISSIONS_FIXED_NODES"), ids);
+    serviceManager
+        .getService(BesuConfiguration.class)
+        .ifPresent(
+            config -> {
+              Path staticNodes = config.getDataPath().resolve("static-nodes.json");
+              if (Files.exists(staticNodes)) {
+                try {
+                  addEnodeIds(Files.readString(staticNodes), ids);
+                } catch (IOException e) {
+                  LOG.error("Could not read {}: {}", staticNodes, e.getMessage());
+                }
+              }
+            });
+    setFixedNodes(ids, resolveLocalNodeId());
+  }
+
+  /**
+   * Sets the nodes permitted before the node first reaches sync. The local node is always removed:
+   * for inbound connections Besu passes the local node as the destination, so keeping it would
+   * permit any inbound peer. If the local node ID is unknown, the pre-sync path is disabled and the
+   * contract decides, as before.
+   */
+  void setFixedNodes(final Set<Bytes> ids, final Bytes localNodeId) {
+    if (localNodeId == null) {
+      if (!ids.isEmpty()) {
+        LOG.warn("Could not determine the local node ID. Pre-sync node permissioning disabled.");
+      }
+      this.fixedNodeIds = Set.of();
+      return;
+    }
+    Set<Bytes> withoutLocal = new HashSet<>(ids);
+    if (withoutLocal.remove(localNodeId)) {
+      LOG.info("Ignoring the local node's own enode in the fixed nodes list.");
+    }
+    this.fixedNodeIds = Set.copyOf(withoutLocal);
+    LOG.info("Loaded {} fixed node(s) for pre-sync node permissioning.", fixedNodeIds.size());
+  }
+
+  private Bytes resolveLocalNodeId() {
+    String configuredModule = System.getenv("BESU_SECURITY_MODULE");
+    String moduleName =
+        configuredModule == null || configuredModule.isEmpty()
+            ? DEFAULT_SECURITY_MODULE
+            : configuredModule;
+    try {
+      return serviceManager
+          .getService(SecurityModuleService.class)
+          .flatMap(service -> service.getByName(moduleName))
+          .map(module -> toNodeId(module.get().getPublicKey().getW()))
+          .orElse(null);
+    } catch (Exception e) {
+      LOG.warn("Could not read the local node public key: {}", e.getMessage());
+      return null;
+    }
+  }
+
+  static Bytes toNodeId(final ECPoint publicKey) {
+    return Bytes.concatenate(
+        Bytes.wrap(UInt256.valueOf(publicKey.getAffineX()).toArrayUnsafe()),
+        Bytes.wrap(UInt256.valueOf(publicKey.getAffineY()).toArrayUnsafe()));
+  }
+
+  static void addEnodeIds(final String text, final Set<Bytes> ids) {
+    if (text == null) {
+      return;
+    }
+    Matcher matcher = ENODE_ID_PATTERN.matcher(text);
+    while (matcher.find()) {
+      ids.add(Bytes.fromHexString(matcher.group(1)));
+    }
+  }
+
+  boolean hasFixedNodes() {
+    return !fixedNodeIds.isEmpty();
+  }
+
+  boolean isFixedNode(final EnodeURL enode) {
+    return fixedNodeIds.contains(enode.getNodeId());
+  }
+
+  /** One-way latch: once the node has reached sync, it never goes back to pre-sync mode. */
+  boolean hasReachedSync() {
+    if (reachedSync.get()) {
+      return true;
+    }
+    SynchronizationService sync = synchronizationService;
+    if (sync == null) {
+      return true;
+    }
+    if (sync.getBestPeerChainHead().isPresent()
+        && sync.isInSync()
+        && reachedSync.compareAndSet(false, true)) {
+      LOG.info("Node reached sync. Node permissioning is now decided by the NodeRules contract.");
+    }
+    return reachedSync.get();
+  }
+
   Address getAccountRulesAddress() {
     var head = blockchainService.getChainHeadHeader();
     long currentBlock = head.getNumber();
@@ -437,6 +565,10 @@ public class PermissioningPlugin implements BesuPlugin {
 
   void setBlockchainService(final BlockchainService service) {
     this.blockchainService = service;
+  }
+
+  void setSynchronizationService(final SynchronizationService service) {
+    this.synchronizationService = service;
   }
 
   Counter getTxCheckCounter() {
