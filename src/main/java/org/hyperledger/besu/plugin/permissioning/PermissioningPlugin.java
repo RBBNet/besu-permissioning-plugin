@@ -20,6 +20,7 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.spec.ECPoint;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.tuweni.bytes.Bytes;
@@ -55,6 +57,30 @@ import org.slf4j.LoggerFactory;
 public class PermissioningPlugin implements BesuPlugin {
   private static final Logger LOG = LoggerFactory.getLogger(PermissioningPlugin.class);
   private static final long DEFAULT_SIMULATION_GAS_LIMIT = 3_000_000L;
+
+  static final String ENV_ACCOUNTS_ADDRESS = "BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS";
+  static final String ENV_NODES_ADDRESS = "BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS";
+  static final String ENV_NODES_VERSION = "BESU_PERMISSIONS_NODES_CONTRACT_VERSION";
+  static final String ENV_GAS_LIMIT = "BESU_PERMISSIONS_SIMULATION_GAS_LIMIT";
+
+  /** Contract addresses must be given in full: Besu's Address parser left-pads short values. */
+  private static final Pattern FULL_ADDRESS = Pattern.compile("^0x[0-9a-fA-F]{40}$");
+
+  /** The zero address never identifies an Ingress contract. */
+  private static final Pattern ZERO_ADDRESS = Pattern.compile("^0x0{40}$");
+
+  /** Source of configuration values (the process environment in production). */
+  private final Function<String, String> env;
+
+  /** Creates the plugin reading its configuration from the process environment. */
+  public PermissioningPlugin() {
+    this(System::getenv);
+  }
+
+  /** Creates the plugin with an explicit configuration source (used by tests). */
+  PermissioningPlugin(final Function<String, String> env) {
+    this.env = env;
+  }
 
   private ServiceManager serviceManager;
   private TransactionSimulationService simulationService;
@@ -111,79 +137,95 @@ public class PermissioningPlugin implements BesuPlugin {
 
     configureFromEnvironment();
 
-    context
-        .getService(PermissioningService.class)
-        .ifPresent(
-            service -> {
-              service.registerTransactionPermissioningProvider(
-                  new OnChainTransactionPermissioningProvider(this));
-              service.registerNodePermissioningProvider(new OnChainNodePermissioningProvider(this));
-            });
+    PermissioningService permissioningService =
+        context
+            .getService(PermissioningService.class)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "PermissioningService is required but not available from Besu service context."));
+    permissioningService.registerTransactionPermissioningProvider(
+        new OnChainTransactionPermissioningProvider(this));
+    permissioningService.registerNodePermissioningProvider(
+        new OnChainNodePermissioningProvider(this));
   }
 
+  /**
+   * Reads and validates the configuration. Any missing mandatory setting or invalid value makes the
+   * plugin throw, so that Besu aborts startup (default unless {@code --plugin-continue-on-error} is
+   * enabled) instead of running in a degraded, fail-closed state that rejects even valid blocks.
+   */
   void configureFromEnvironment() {
-    String accountIngressEnv = System.getenv("BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS");
-    if (accountIngressEnv != null && !accountIngressEnv.isEmpty()) {
-      try {
-        this.accountIngressAddress = Address.fromHexString(accountIngressEnv);
-        LOG.info("Account Permissioning Ingress Address set to: {}", accountIngressAddress);
-      } catch (IllegalArgumentException e) {
-        LOG.error("Invalid Account Ingress Address format. Fail-close activated for transactions.");
-        this.accountIngressAddress = null;
-      }
+    List<String> errors = new ArrayList<>();
+
+    String accountIngressEnv = env.apply(ENV_ACCOUNTS_ADDRESS);
+    if (accountIngressEnv == null || accountIngressEnv.isBlank()) {
+      errors.add(ENV_ACCOUNTS_ADDRESS + " is mandatory and is not set");
     } else {
-      LOG.warn("Missing BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS environment variable.");
+      if (ZERO_ADDRESS.matcher(accountIngressEnv.trim()).matches()) {
+        errors.add(ENV_ACCOUNTS_ADDRESS + " must not be the zero address");
+      } else if (FULL_ADDRESS.matcher(accountIngressEnv.trim()).matches()) {
+        this.accountIngressAddress = Address.fromHexString(accountIngressEnv.trim());
+        LOG.info("Account Permissioning Ingress Address set to: {}", accountIngressAddress);
+      } else {
+        errors.add(
+            ENV_ACCOUNTS_ADDRESS + "=" + accountIngressEnv + " is not a full 0x-prefixed address");
+      }
     }
 
-    String nodeContractVersionEnv = System.getenv("BESU_PERMISSIONS_NODES_CONTRACT_VERSION");
-    if (nodeContractVersionEnv != null && !nodeContractVersionEnv.isEmpty()) {
+    String nodeContractVersionEnv = env.apply(ENV_NODES_VERSION);
+    if (nodeContractVersionEnv != null && !nodeContractVersionEnv.isBlank()) {
       try {
-        int parsedVersion = Integer.parseInt(nodeContractVersionEnv);
+        int parsedVersion = Integer.parseInt(nodeContractVersionEnv.trim());
         if (parsedVersion == 1 || parsedVersion == 2) {
           this.nodeContractVersion = parsedVersion;
         } else {
-          LOG.error(
-              "Invalid BESU_PERMISSIONS_NODES_CONTRACT_VERSION={}. Defaulting to 1.",
-              parsedVersion);
-          this.nodeContractVersion = 1;
+          errors.add(ENV_NODES_VERSION + "=" + parsedVersion + " is invalid (expected 1 or 2)");
         }
       } catch (NumberFormatException e) {
-        LOG.error(
-            "Unparseable BESU_PERMISSIONS_NODES_CONTRACT_VERSION={}. Defaulting to 1.",
-            nodeContractVersionEnv);
-        this.nodeContractVersion = 1;
+        errors.add(ENV_NODES_VERSION + "=" + nodeContractVersionEnv + " is not a number");
       }
     }
     LOG.info("Node contract interface version set to {}", nodeContractVersion);
 
-    String nodeIngressEnv = System.getenv("BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS");
-    if (nodeIngressEnv != null && !nodeIngressEnv.isEmpty()) {
-      try {
-        this.nodeIngressAddress = Address.fromHexString(nodeIngressEnv);
+    String nodeIngressEnv = env.apply(ENV_NODES_ADDRESS);
+    if (nodeIngressEnv != null && !nodeIngressEnv.isBlank()) {
+      if (ZERO_ADDRESS.matcher(nodeIngressEnv.trim()).matches()) {
+        errors.add(ENV_NODES_ADDRESS + " must not be the zero address");
+      } else if (FULL_ADDRESS.matcher(nodeIngressEnv.trim()).matches()) {
+        this.nodeIngressAddress = Address.fromHexString(nodeIngressEnv.trim());
         LOG.info("Node Permissioning Ingress Address set to: {}", nodeIngressAddress);
-      } catch (IllegalArgumentException e) {
-        LOG.error(
-            "Invalid Node Ingress Address format. Fail-close activated for node connections.");
-        this.nodeIngressAddress = null;
+      } else {
+        errors.add(ENV_NODES_ADDRESS + "=" + nodeIngressEnv + " is not a full 0x-prefixed address");
       }
     } else {
       LOG.warn(
-          "Missing BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS. Node permissioning operating in explicit fail-close mode.");
+          "{} is not set: node permissioning operates in explicit fail-close mode "
+              + "(only Besu's bootnode exception applies).",
+          ENV_NODES_ADDRESS);
       this.nodeIngressAddress = null;
     }
 
-    String gasLimitEnv = System.getenv("BESU_PERMISSIONS_SIMULATION_GAS_LIMIT");
-    if (gasLimitEnv != null && !gasLimitEnv.isEmpty()) {
+    String gasLimitEnv = env.apply(ENV_GAS_LIMIT);
+    if (gasLimitEnv != null && !gasLimitEnv.isBlank()) {
       try {
-        this.simulationGasLimit = Long.parseLong(gasLimitEnv);
-        LOG.info("Simulation gas limit set to: {}", simulationGasLimit);
+        long parsed = Long.parseLong(gasLimitEnv.trim());
+        if (parsed <= 0) {
+          errors.add(ENV_GAS_LIMIT + "=" + parsed + " must be a positive number");
+        } else {
+          this.simulationGasLimit = parsed;
+          LOG.info("Simulation gas limit set to: {}", simulationGasLimit);
+        }
       } catch (NumberFormatException e) {
-        LOG.error(
-            "Unparseable BESU_PERMISSIONS_SIMULATION_GAS_LIMIT={}. Defaulting to {}.",
-            gasLimitEnv,
-            DEFAULT_SIMULATION_GAS_LIMIT);
-        this.simulationGasLimit = DEFAULT_SIMULATION_GAS_LIMIT;
+        errors.add(ENV_GAS_LIMIT + "=" + gasLimitEnv + " is not a number");
       }
+    }
+
+    if (!errors.isEmpty()) {
+      String message =
+          "On-Chain Permissioning Plugin: invalid configuration — " + String.join("; ", errors);
+      LOG.error(message);
+      throw new IllegalStateException(message);
     }
   }
 
@@ -236,10 +278,6 @@ public class PermissioningPlugin implements BesuPlugin {
       loadFixedNodes();
     }
 
-    if (accountIngressAddress == null) {
-      LOG.error(
-          "On-Chain Permissioning Plugin Error: Account Ingress Address is unconfigured or invalid. Fail-close active.");
-    }
     if (nodeIngressAddress == null) {
       LOG.warn(
           "On-Chain Permissioning Plugin Warning: Node Ingress Address is unconfigured. Node connections will be rejected.");

@@ -81,6 +81,8 @@ cp build/libs/besu-plugin-permissioning.jar /opt/besu/plugins/
 | `BESU_PERMISSIONS_SIMULATION_GAS_LIMIT` | Optional | `3000000` | Gas limit allocated for in-memory contract simulation calls. |
 | `BESU_PERMISSIONS_FIXED_NODES` | Optional | — | Comma-separated enode URLs permitted while the node has not yet reached sync, in addition to `static-nodes.json` in the data path and `BESU_BOOTNODES`. See [Node permissioning during initial sync](#node-permissioning-during-initial-sync). |
 
+Configuration is validated when the plugin registers. A missing `BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS`, a zero address or an invalid value in any of the first four variables above makes the plugin throw and **Besu aborts startup** with a message listing every problem. Do not enable `--plugin-continue-on-error`: with it, Besu would start **without** the plugin, that is, without any on-chain permissioning.
+
 ### Node permissioning during initial sync
 
 While a node syncs, its local chain state is old, so the node permissioning contract cannot be evaluated against the current state of the network. Like Besu's former native on-chain permissioning, the plugin handles this window explicitly:
