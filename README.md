@@ -83,6 +83,24 @@ cp build/libs/besu-plugin-permissioning.jar /opt/besu/plugins/
 | `BESU_PERMISSIONS_NODES_CONTRACT_ADDRESS` | Optional | — | Hex address of Node Ingress smart contract. If omitted, node permissioning operates in explicit fail-close mode. |
 | `BESU_PERMISSIONS_NODES_CONTRACT_VERSION` | Optional | `1` | Node contract interface version (`1` for V1 tripwire, `2` for V2 per-enode ABI-encoded bool). |
 | `BESU_PERMISSIONS_SIMULATION_GAS_LIMIT` | Optional | `3000000` | Gas limit allocated for in-memory contract simulation calls. |
+| `BESU_PERMISSIONS_FIXED_NODES` | Optional | — | Comma-separated enode URLs permitted while the node has not yet reached sync, in addition to `static-nodes.json` in the data path and `BESU_BOOTNODES`. See [Node permissioning during initial sync](#node-permissioning-during-initial-sync). |
+
+Configuration is validated when the plugin registers. A missing `BESU_PERMISSIONS_ACCOUNTS_CONTRACT_ADDRESS`, a zero address or an invalid value in any of the first four variables above makes the plugin throw and **Besu aborts startup** with a message listing every problem. Do not enable `--plugin-continue-on-error`: with it, Besu would start **without** the plugin, that is, without any on-chain permissioning.
+
+### Node permissioning during initial sync
+
+While a node syncs, its local chain state is old, so the node permissioning contract cannot be evaluated against the current state of the network. Like Besu's former native on-chain permissioning, the plugin handles this window explicitly:
+
+- **Until the node first reaches sync**, only outbound connections to fixed nodes are permitted, without calling the contract. Inbound connections are refused.
+- **After the node reaches sync**, every connection is decided by the contract.
+
+Fixed nodes are read from `static-nodes.json` in the data path, `BESU_BOOTNODES` and `BESU_PERMISSIONS_FIXED_NODES`. The node's own enode is ignored if it is listed. Set `BESU_PERMISSIONS_FIXED_NODES` when:
+
+- the static nodes file is outside the data path (`--static-nodes-file`);
+- bootnodes are given on the command line or in a TOML config file, which the plugin cannot read.
+
+If no fixed node is configured, or the plugin cannot determine the local node ID (read from the Besu security module selected by `BESU_SECURITY_MODULE`, default `localfile`), every connection is decided by the contract, also during sync.
+
 
 ### Docker Compose Example
 
