@@ -18,6 +18,7 @@ package org.hyperledger.besu.plugin.permissioning;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
@@ -31,7 +32,9 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.spec.ECPoint;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.tuweni.bytes.Bytes;
@@ -80,12 +83,114 @@ class PermissioningPluginTest {
     when(chainHead.getNumber()).thenReturn(100L);
   }
 
+  private static final Map<String, String> VALID_CONFIG =
+      Map.of(
+          PermissioningPlugin.ENV_ACCOUNTS_ADDRESS, "0x0000000000000000000000000000000000008888",
+          PermissioningPlugin.ENV_NODES_ADDRESS, "0x0000000000000000000000000000000000009999");
+
+  private static Map<String, String> configWith(final String key, final String value) {
+    Map<String, String> config = new HashMap<>(VALID_CONFIG);
+    if (value == null) {
+      config.remove(key);
+    } else {
+      config.put(key, value);
+    }
+    return config;
+  }
+
+  private IllegalStateException registerFails(final Map<String, String> config) {
+    when(serviceManager.getService(PermissioningService.class))
+        .thenReturn(Optional.of(permissioningService));
+    PermissioningPlugin plugin = new PermissioningPlugin(config::get);
+    return assertThrows(IllegalStateException.class, () -> plugin.register(serviceManager));
+  }
+
+  @Test
+  void registerFailsWhenTheAccountIngressAddressIsMissing() {
+    IllegalStateException e =
+        registerFails(configWith(PermissioningPlugin.ENV_ACCOUNTS_ADDRESS, null));
+    assertTrue(e.getMessage().contains(PermissioningPlugin.ENV_ACCOUNTS_ADDRESS));
+    verify(permissioningService, never()).registerTransactionPermissioningProvider(any());
+  }
+
+  @Test
+  void registerFailsWhenTheAccountIngressAddressIsBlank() {
+    registerFails(configWith(PermissioningPlugin.ENV_ACCOUNTS_ADDRESS, ""));
+  }
+
+  @Test
+  void registerFailsWhenTheAccountIngressAddressIsInvalid() {
+    registerFails(configWith(PermissioningPlugin.ENV_ACCOUNTS_ADDRESS, "0xnot-an-address"));
+  }
+
+  @Test
+  void registerFailsWhenTheAccountIngressAddressIsTheZeroAddress() {
+    IllegalStateException e =
+        registerFails(
+            configWith(
+                PermissioningPlugin.ENV_ACCOUNTS_ADDRESS,
+                "0x0000000000000000000000000000000000000000"));
+    assertTrue(e.getMessage().contains("zero address"));
+  }
+
+  @Test
+  void registerFailsWhenTheNodeIngressAddressIsTheZeroAddress() {
+    IllegalStateException e =
+        registerFails(
+            configWith(
+                PermissioningPlugin.ENV_NODES_ADDRESS,
+                "0x0000000000000000000000000000000000000000"));
+    assertTrue(e.getMessage().contains("zero address"));
+  }
+
+  @Test
+  void registerFailsWhenTheNodeIngressAddressIsInvalid() {
+    registerFails(configWith(PermissioningPlugin.ENV_NODES_ADDRESS, "9999"));
+  }
+
+  @Test
+  void registerFailsWhenTheNodeContractVersionIsInvalid() {
+    registerFails(configWith(PermissioningPlugin.ENV_NODES_VERSION, "3"));
+    registerFails(configWith(PermissioningPlugin.ENV_NODES_VERSION, "v1"));
+  }
+
+  @Test
+  void registerFailsWhenTheSimulationGasLimitIsInvalid() {
+    registerFails(configWith(PermissioningPlugin.ENV_GAS_LIMIT, "0"));
+    registerFails(configWith(PermissioningPlugin.ENV_GAS_LIMIT, "lots"));
+  }
+
+  @Test
+  void registerReportsAllConfigurationErrorsAtOnce() {
+    Map<String, String> config = configWith(PermissioningPlugin.ENV_ACCOUNTS_ADDRESS, null);
+    config.put(PermissioningPlugin.ENV_NODES_VERSION, "7");
+    IllegalStateException e = registerFails(config);
+    assertTrue(e.getMessage().contains(PermissioningPlugin.ENV_ACCOUNTS_ADDRESS));
+    assertTrue(e.getMessage().contains(PermissioningPlugin.ENV_NODES_VERSION));
+  }
+
+  @Test
+  void registerFailsWhenThePermissioningServiceIsUnavailable() {
+    when(serviceManager.getService(PermissioningService.class)).thenReturn(Optional.empty());
+    PermissioningPlugin plugin = new PermissioningPlugin(VALID_CONFIG::get);
+    assertThrows(IllegalStateException.class, () -> plugin.register(serviceManager));
+  }
+
+  @Test
+  void registerAcceptsAMissingNodeIngressAddress() {
+    when(serviceManager.getService(PermissioningService.class))
+        .thenReturn(Optional.of(permissioningService));
+    PermissioningPlugin plugin =
+        new PermissioningPlugin(configWith(PermissioningPlugin.ENV_NODES_ADDRESS, null)::get);
+    assertDoesNotThrow(() -> plugin.register(serviceManager));
+  }
+
   @Test
   void registerWithValidServices() {
     when(serviceManager.getService(PermissioningService.class))
         .thenReturn(Optional.of(permissioningService));
 
-    PermissioningPlugin plugin = new PermissioningPlugin();
+    PermissioningPlugin plugin = new PermissioningPlugin(VALID_CONFIG::get);
     assertDoesNotThrow(() -> plugin.register(serviceManager));
 
     verify(permissioningService).registerTransactionPermissioningProvider(any());
@@ -282,8 +387,10 @@ class PermissioningPluginTest {
     when(metricsSystem.createCounter(any(), contains("denied"), any()))
         .thenReturn(nodeDeniedCounter);
     when(serviceManager.getService(MetricsSystem.class)).thenReturn(Optional.of(metricsSystem));
+    when(serviceManager.getService(PermissioningService.class))
+        .thenReturn(Optional.of(permissioningService));
 
-    PermissioningPlugin plugin = new PermissioningPlugin();
+    PermissioningPlugin plugin = new PermissioningPlugin(VALID_CONFIG::get);
     plugin.register(serviceManager);
     plugin.start();
     plugin.setNodeIngressAddress(VALID_ADDRESS);
