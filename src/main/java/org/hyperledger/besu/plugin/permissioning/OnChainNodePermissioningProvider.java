@@ -70,23 +70,19 @@ class OnChainNodePermissioningProvider implements NodeConnectionPermissioningPro
     }
 
     try {
-      Address rulesAddress = plugin.getNodeRulesAddress();
-      if (rulesAddress == null || rulesAddress.equals(Address.ZERO)) {
-        LOG.error(
-            "PermissioningPlugin: Could not resolve NodeRules contract address. Rejecting connection.");
-        if (plugin.getNodeDeniedCounter() != null) {
-          plugin.getNodeDeniedCounter().inc();
-        }
-        return false;
-      }
+      // The Node Ingress contract is queried directly, exactly as Besu's former native on-chain
+      // permissioning did. The Ingress forwards to the current Rules contract and encodes the
+      // network's policy for the state in which no Rules contract is set yet (e.g. a node that
+      // is syncing from genesis, before the permissioning contracts were deployed).
+      Address ingressAddress = plugin.getNodeIngressAddress();
 
       int version = plugin.getNodeContractVersion();
       boolean permitted;
 
       if (version == 2) {
         permitted =
-            isNodePermittedV2(sourceEnode, rulesAddress)
-                && isNodePermittedV2(destinationEnode, rulesAddress);
+            isNodePermittedV2(sourceEnode, ingressAddress)
+                && isNodePermittedV2(destinationEnode, ingressAddress);
       } else {
         Bytes payload =
             Bytes.concatenate(
@@ -96,18 +92,18 @@ class OnChainNodePermissioningProvider implements NodeConnectionPermissioningPro
 
         permitted =
             plugin
-                .callContract(rulesAddress, payload)
+                .callContract(ingressAddress, payload)
                 .map(
                     result -> {
                       if (result.equals(PermissioningPluginFunctions.TRUE_RESPONSE)) {
                         return true;
                       } else if (result.equals(PermissioningPluginFunctions.FALSE_RESPONSE)) {
                         LOG.warn(
-                            "PermissioningPlugin: P2P connection DENIED by NodeRules smart contract.");
+                            "PermissioningPlugin: P2P connection DENIED by the Node Ingress / Rules smart contract.");
                         return false;
                       } else {
                         LOG.error(
-                            "PermissioningPlugin: Unexpected response from NodeRules: {}. Denying.",
+                            "PermissioningPlugin: Unexpected response from Node Ingress: {}. Denying.",
                             result);
                         return false;
                       }
@@ -136,7 +132,7 @@ class OnChainNodePermissioningProvider implements NodeConnectionPermissioningPro
     }
   }
 
-  private boolean isNodePermittedV2(final EnodeURL enode, final Address rulesAddress) {
+  private boolean isNodePermittedV2(final EnodeURL enode, final Address ingressAddress) {
     try {
       String hexNodeId = enode.getNodeId().toUnprefixedHexString();
       String host = enode.getIp().getHostAddress();
@@ -144,7 +140,7 @@ class OnChainNodePermissioningProvider implements NodeConnectionPermissioningPro
 
       Bytes payload = PermissioningPluginFunctions.encodeConnectionAllowedV2(hexNodeId, host, port);
       return plugin
-          .callContract(rulesAddress, payload)
+          .callContract(ingressAddress, payload)
           .map(
               result -> {
                 if (result.equals(PermissioningPluginFunctions.V2_TRUE_RESPONSE)) {
@@ -153,7 +149,7 @@ class OnChainNodePermissioningProvider implements NodeConnectionPermissioningPro
                   return false;
                 } else {
                   LOG.error(
-                      "PermissioningPlugin: Unexpected V2 response from NodeRules: {}. Denying.",
+                      "PermissioningPlugin: Unexpected V2 response from Node Ingress: {}. Denying.",
                       result);
                   return false;
                 }

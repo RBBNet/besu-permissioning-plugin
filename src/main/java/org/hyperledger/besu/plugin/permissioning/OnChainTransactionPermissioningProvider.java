@@ -61,22 +61,16 @@ class OnChainTransactionPermissioningProvider implements TransactionPermissionin
     }
 
     try {
-      Address rulesAddress = plugin.getAccountRulesAddress();
-      if (rulesAddress == null || rulesAddress.equals(Address.ZERO)) {
-        LOG.error(
-            "PermissioningPlugin: Could not resolve AccountRules contract address. Rejecting transaction.");
-        if (plugin.getTxDeniedCounter() != null) {
-          plugin.getTxDeniedCounter().inc();
-        }
-        return false;
-      }
-
+      // The Account Ingress contract is queried directly, exactly as Besu's former native
+      // on-chain permissioning did. The Ingress forwards to the current Rules contract and
+      // encodes the network's policy for the state in which no Rules contract is set yet
+      // (e.g. early blocks of the chain, before the permissioning contracts were deployed).
       Bytes payload =
           Bytes.concatenate(
               PermissioningPluginFunctions.TRANSACTION_ALLOWED_SELECTOR,
               PermissioningPluginFunctions.encodeTransactionAllowed(transaction));
 
-      boolean permitted = plugin.simulateAndGetBool(rulesAddress, payload);
+      boolean permitted = plugin.simulateAndGetBool(plugin.getAccountIngressAddress(), payload);
 
       if (permitted) {
         if (plugin.getTxPermittedCounter() != null) {
