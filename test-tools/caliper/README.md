@@ -255,12 +255,12 @@ Calls `transactionAllowed(address,address,uint256,uint256,uint256,bytes)` on Acc
 
 | Metric | Description |
 |---------|-----------|
-| `besu_permissioning_onchain_transaction_check_count_total` | Total de tx verificadas |
-| `besu_permissioning_onchain_transaction_check_count_permitted_total` | Tx aprovadas |
-| `besu_permissioning_onchain_transaction_check_count_denied_total` | Tx rejeitadas |
-| `besu_permissioning_onchain_node_check_count_total` | Conexões P2P verificadas |
-| `besu_permissioning_onchain_node_check_count_permitted_total` | Conexões P2P aprovadas |
-| `besu_permissioning_onchain_node_check_count_denied_total` | Conexões P2P rejeitadas |
+| `besu_permissioning_transactions_checked_total` | Total de tx verificadas |
+| `besu_permissioning_transactions_permitted_total` | Tx aprovadas |
+| `besu_permissioning_transactions_denied_total` | Tx rejeitadas |
+| `besu_permissioning_nodes_checked_total` | Conexões P2P verificadas |
+| `besu_permissioning_nodes_permitted_total` | Conexões P2P aprovadas |
+| `besu_permissioning_nodes_denied_total` | Conexões P2P rejeitadas |
 
 ### 5.3 Infrastructure Metrics (docker stats)
 

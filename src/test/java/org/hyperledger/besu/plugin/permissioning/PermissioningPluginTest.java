@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -353,6 +354,34 @@ class PermissioningPluginTest {
     assertTrue(result, "V2: both nodes permitted must return true");
   }
 
+  @Test
+  void metricCategoryProducesTheBesuPermissioningPrefix() {
+    PermissioningMetricCategory category = PermissioningMetricCategory.PERMISSIONING;
+    assertEquals(
+        "besu_permissioning",
+        category.getApplicationPrefix().orElse("") + category.getName(),
+        "Exposed metric names must start with besu_permissioning_");
+  }
+
+  @Test
+  void countersAreRegisteredWithTheDocumentedNames() {
+    MetricsSystem metricsSystem = mock(MetricsSystem.class);
+    when(metricsSystem.createCounter(any(), any(), any())).thenReturn(mock(Counter.class));
+
+    new PermissioningPlugin().setupMetrics(metricsSystem);
+
+    for (String name :
+        List.of(
+            "transactions_checked",
+            "transactions_permitted",
+            "transactions_denied",
+            "nodes_checked",
+            "nodes_permitted",
+            "nodes_denied")) {
+      verify(metricsSystem)
+          .createCounter(eq(PermissioningMetricCategory.PERMISSIONING), eq(name), any());
+    }
+  }
   // --- transactionAllowed output validation (#9) ---
 
   private PermissioningPlugin pluginWithSimulatedOutput(final Bytes output) {

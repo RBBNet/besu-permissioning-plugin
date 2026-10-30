@@ -128,8 +128,8 @@ public class GrafanaContainer {
             "      \"type\": \"graph\",\n" +
             "      \"gridPos\": { \"x\": 0, \"y\": 0, \"w\": 12, \"h\": 8 },\n" +
             "      \"targets\": [\n" +
-            "        { \"expr\": \"rate(onchain_transaction_check_count_permitted[1m])\", \"legendFormat\": \"Permitted — {{node_name}}\" },\n" +
-            "        { \"expr\": \"rate(onchain_transaction_check_count_denied[1m])\", \"legendFormat\": \"Denied — {{node_name}}\" }\n" +
+            "        { \"expr\": \"rate(besu_permissioning_transactions_permitted_total[1m])\", \"legendFormat\": \"Permitted — {{node_name}}\" },\n" +
+            "        { \"expr\": \"rate(besu_permissioning_transactions_denied_total[1m])\", \"legendFormat\": \"Denied — {{node_name}}\" }\n" +
             "      ],\n" +
             "      \"yaxes\": [{ \"format\": \"short\", \"label\": \"Rate (per second)\" }]\n" +
             "    },\n" +

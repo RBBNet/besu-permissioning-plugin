@@ -79,9 +79,9 @@ python3 orchestrator.py -c configs/scenario-full-network.json -a start --monitor
 ```
 
 Exposed Grafana Metrics:
-- `besu_permissioning_onchain_transaction_check_count_permitted_total` - Permitted transactions
-- `besu_permissioning_onchain_transaction_check_count_denied_total` - Denied transactions
-- `besu_permissioning_onchain_transaction_check_count_total` - Total evaluated transactions
+- `besu_permissioning_transactions_permitted_total` - Permitted transactions
+- `besu_permissioning_transactions_denied_total` - Denied transactions
+- `besu_permissioning_transactions_checked_total` - Total evaluated transactions
 
 See `monitoring/README.md` for complete details.
 
