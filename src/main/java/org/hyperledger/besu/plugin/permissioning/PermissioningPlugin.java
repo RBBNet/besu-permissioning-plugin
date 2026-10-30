@@ -393,8 +393,24 @@ public class PermissioningPlugin implements BesuPlugin {
     }
   }
 
+  /**
+   * Permits only an ABI-encoded {@code bool true} (exactly 32 bytes, value 1). ABI {@code false},
+   * failed calls and malformed outputs are denied (fail-close, PERM-240).
+   */
   boolean simulateAndGetBool(final Address target, final Bytes payload) {
-    return callContract(target, payload).map(bytes -> !bytes.isZero()).orElse(false);
+    Optional<Bytes> output = callContract(target, payload);
+    if (output.isEmpty()) {
+      LOG.error("PermissioningPlugin: call to {} failed. Denying.", target);
+      return false;
+    }
+    if (output.get().equals(PermissioningPluginFunctions.V2_TRUE_RESPONSE)) {
+      return true;
+    }
+    if (!output.get().equals(PermissioningPluginFunctions.V2_FALSE_RESPONSE)) {
+      LOG.error(
+          "PermissioningPlugin: Unexpected output from {}: {}. Denying.", target, output.get());
+    }
+    return false;
   }
 
   void loadFixedNodes() {

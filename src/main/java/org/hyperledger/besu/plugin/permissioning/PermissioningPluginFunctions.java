@@ -56,7 +56,7 @@ public class PermissioningPluginFunctions {
   public static final Bytes FALSE_RESPONSE =
       Bytes.fromHexString("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
-  /** V2 ABI-encoded boolean return values. */
+  /** ABI-encoded boolean return values (V2 connectionAllowed and transactionAllowed). */
   public static final Bytes V2_TRUE_RESPONSE =
       Bytes.fromHexString("0x0000000000000000000000000000000000000000000000000000000000000001");
 
